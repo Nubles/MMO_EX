@@ -1,0 +1,262 @@
+:root {
+  color-scheme: dark;
+  --bg: #111611;
+  --panel: rgba(27, 33, 24, 0.88);
+  --panel-strong: rgba(42, 52, 35, 0.94);
+  --border: rgba(226, 214, 166, 0.22);
+  --text: #f4ecd0;
+  --muted: #c6b98d;
+  --accent: #e5b85c;
+  --accent-2: #8ccf7e;
+  --danger: #ce735f;
+  --shadow: 0 16px 36px rgba(0, 0, 0, 0.36);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button {
+  font: inherit;
+}
+
+.game-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 540px;
+  overflow: hidden;
+  background: #172018;
+}
+
+#gameCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.top-hud,
+.side-panel,
+.chat-panel {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.top-hud {
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  padding: 14px 18px;
+  border-radius: 8px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.top-hud p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.control-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.control-hints span {
+  border: 1px solid rgba(244, 236, 208, 0.18);
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #efe3bd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.side-panel {
+  top: 104px;
+  right: 16px;
+  width: min(280px, calc(100vw - 32px));
+  max-height: calc(100vh - 128px);
+  overflow: auto;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.panel-section + .panel-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.panel-section h2 {
+  margin-bottom: 10px;
+  color: #fff5d6;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.stat-row,
+.skill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.stat-row strong,
+.skill-header strong {
+  color: #fff8dd;
+  font-size: 18px;
+}
+
+.xp-track {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.xp-fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition: width 180ms ease;
+}
+
+#woodcuttingXp,
+#worldPrompt {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+#resetSave {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid rgba(206, 115, 95, 0.44);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(88, 33, 28, 0.5);
+  color: #ffd8cf;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+#resetSave:hover {
+  background: rgba(112, 41, 35, 0.72);
+}
+
+.chat-panel {
+  left: 16px;
+  bottom: 16px;
+  width: min(460px, calc(100vw - 32px));
+  max-height: 190px;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.chat-title {
+  margin-bottom: 8px;
+  color: #fff5d6;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#chatLog {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 132px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  color: #e6d9ae;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+#chatLog li {
+  padding-left: 10px;
+  border-left: 2px solid rgba(229, 184, 92, 0.5);
+}
+
+@media (max-width: 760px) {
+  .game-shell {
+    min-height: 100vh;
+  }
+
+  .top-hud {
+    align-items: flex-start;
+    flex-direction: column;
+    right: 12px;
+    left: 12px;
+    top: 12px;
+  }
+
+  .control-hints {
+    justify-content: flex-start;
+  }
+
+  .side-panel {
+    top: auto;
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: 34vh;
+  }
+
+  .chat-panel {
+    left: 12px;
+    bottom: calc(34vh + 24px);
+    width: min(420px, calc(100vw - 24px));
+    max-height: 150px;
+  }
+}

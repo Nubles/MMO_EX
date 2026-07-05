@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MMO-EX</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell" aria-label="MMO-EX browser game">
+      <canvas id="gameCanvas" aria-label="Playable MMO world"></canvas>
+
+      <header class="top-hud">
+        <div>
+          <h1>MMO-EX</h1>
+          <p id="saveStatus">Local world ready</p>
+        </div>
+        <nav class="control-hints" aria-label="Controls">
+          <span>WASD / Arrows</span>
+          <span>Click to move</span>
+          <span>Click trees to chop</span>
+        </nav>
+      </header>
+
+      <aside class="side-panel" aria-label="Character panel">
+        <section class="panel-section">
+          <h2>Inventory</h2>
+          <div class="stat-row">
+            <span>Logs</span>
+            <strong id="logCount">0</strong>
+          </div>
+          <div class="stat-row">
+            <span>Coins</span>
+            <strong id="coinCount">0</strong>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h2>Skills</h2>
+          <div class="skill-header">
+            <span>Woodcutting</span>
+            <strong id="woodcuttingLevel">1</strong>
+          </div>
+          <div class="xp-track" aria-label="Woodcutting XP progress">
+            <div id="woodcuttingProgress" class="xp-fill"></div>
+          </div>
+          <p id="woodcuttingXp">0 / 100 XP</p>
+        </section>
+
+        <section class="panel-section">
+          <h2>World</h2>
+          <p id="worldPrompt">Find a tree and start chopping.</p>
+          <button id="resetSave" type="button">Reset Save</button>
+        </section>
+      </aside>
+
+      <section class="chat-panel" aria-label="World chat">
+        <div class="chat-title">World</div>
+        <ol id="chatLog">
+          <li>Welcome to MMO-EX. The first island is waking up.</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>
