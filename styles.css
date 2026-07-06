@@ -215,6 +215,75 @@ h1 {
   color: rgba(244, 236, 208, 0.42);
   cursor: not-allowed;
 }
+
+.button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.button-grid .action-button {
+  margin-top: 0;
+  padding: 9px 8px;
+  font-size: 12px;
+}
+
+.smithing-fill {
+  background: linear-gradient(90deg, #d6c078, #e08c4f);
+}
+
+.attack-fill {
+  background: linear-gradient(90deg, #ce735f, #e5b85c);
+}
+
+.hp-fill {
+  width: 100%;
+  background: linear-gradient(90deg, #ce735f, #8ccf7e);
+}
+
+.quest-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.quest-list li {
+  padding-left: 18px;
+  position: relative;
+}
+
+.quest-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(244, 236, 208, 0.35);
+  border-radius: 3px;
+}
+
+.quest-list li.complete {
+  color: #fff2c9;
+}
+
+.quest-list li.complete::before {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+}
+
+#questStatus {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
 #resetSave {
   width: 100%;
   margin-top: 12px;
@@ -302,5 +371,6 @@ h1 {
     max-height: 150px;
   }
 }
+
 
 

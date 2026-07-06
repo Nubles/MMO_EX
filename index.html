@@ -19,67 +19,87 @@
         <nav class="control-hints" aria-label="Controls">
           <span>WASD / Arrows</span>
           <span>Click to move</span>
-          <span>Click trees to chop</span>
+          <span>Click resources</span>
         </nav>
       </header>
 
       <aside class="side-panel" aria-label="Character panel">
         <section class="panel-section">
           <h2>Inventory</h2>
-          <div class="stat-row">
-            <span>Logs</span>
-            <strong id="logCount">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Copper Ore</span>
-            <strong id="copperOreCount">0</strong>
-          </div>
-          <div class="stat-row">
-            <span>Coins</span>
-            <strong id="coinCount">0</strong>
-          </div>
+          <div class="stat-row"><span>Logs</span><strong id="logCount">0</strong></div>
+          <div class="stat-row"><span>Copper Ore</span><strong id="copperOreCount">0</strong></div>
+          <div class="stat-row"><span>Copper Bars</span><strong id="copperBarCount">0</strong></div>
+          <div class="stat-row"><span>Coins</span><strong id="coinCount">0</strong></div>
         </section>
 
         <section class="panel-section">
           <h2>Skills</h2>
-          <div class="skill-header">
-            <span>Woodcutting</span>
-            <strong id="woodcuttingLevel">1</strong>
-          </div>
-          <div class="xp-track" aria-label="Woodcutting XP progress">
-            <div id="woodcuttingProgress" class="xp-fill"></div>
-          </div>
+          <div class="skill-header"><span>Woodcutting</span><strong id="woodcuttingLevel">1</strong></div>
+          <div class="xp-track" aria-label="Woodcutting XP progress"><div id="woodcuttingProgress" class="xp-fill"></div></div>
           <p id="woodcuttingXp">0 / 100 XP</p>
-          <div class="skill-header skill-spacer">
-            <span>Mining</span>
-            <strong id="miningLevel">1</strong>
-          </div>
-          <div class="xp-track" aria-label="Mining XP progress">
-            <div id="miningProgress" class="xp-fill mining-fill"></div>
-          </div>
+          <div class="skill-header skill-spacer"><span>Mining</span><strong id="miningLevel">1</strong></div>
+          <div class="xp-track" aria-label="Mining XP progress"><div id="miningProgress" class="xp-fill mining-fill"></div></div>
           <p id="miningXp">0 / 100 XP</p>
+          <div class="skill-header skill-spacer"><span>Smithing</span><strong id="smithingLevel">1</strong></div>
+          <div class="xp-track" aria-label="Smithing XP progress"><div id="smithingProgress" class="xp-fill smithing-fill"></div></div>
+          <p id="smithingXp">0 / 100 XP</p>
+          <div class="skill-header skill-spacer"><span>Attack</span><strong id="attackLevel">1</strong></div>
+          <div class="xp-track" aria-label="Attack XP progress"><div id="attackProgress" class="xp-fill attack-fill"></div></div>
+          <p id="attackXp">0 / 100 XP</p>
+        </section>
+
+        <section class="panel-section">
+          <h2>Combat</h2>
+          <div class="stat-row"><span>HP</span><strong id="hpValue">20 / 20</strong></div>
+          <div class="xp-track" aria-label="Hitpoints"><div id="hpFill" class="xp-fill hp-fill"></div></div>
         </section>
 
         <section class="panel-section">
           <h2>Equipment</h2>
-          <div class="stat-row">
-            <span>Axe</span>
-            <strong id="axeName">Bronze</strong>
-          </div>
+          <div class="stat-row"><span>Axe</span><strong id="axeName">Bronze</strong></div>
           <p id="axeSpeed">Standard chop speed</p>
         </section>
 
         <section class="panel-section market-panel">
-          <h2>Timber Market</h2>
-          <p id="marketStatus">Visit the Timber Buyer near the market.</p>
+          <h2>Actions</h2>
+          <p id="marketStatus">Visit a trader, bank, or workshop.</p>
           <button id="sellLogs" class="action-button" type="button">Sell Logs</button>
           <button id="buyIronAxe" class="action-button" type="button">Buy Iron Axe</button>
           <button id="sellCopperOre" class="action-button" type="button">Sell Copper Ore</button>
+          <button id="sellCopperBars" class="action-button" type="button">Sell Copper Bars</button>
+          <button id="smeltCopperBar" class="action-button" type="button">Smelt Copper Bar</button>
+          <div class="button-grid">
+            <button id="depositLogs" class="action-button" type="button">Deposit Logs</button>
+            <button id="withdrawLogs" class="action-button" type="button">Withdraw Logs</button>
+            <button id="depositCopperOre" class="action-button" type="button">Deposit Ore</button>
+            <button id="withdrawCopperOre" class="action-button" type="button">Withdraw Ore</button>
+            <button id="depositCopperBars" class="action-button" type="button">Deposit Bars</button>
+            <button id="withdrawCopperBars" class="action-button" type="button">Withdraw Bars</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h2>Bank</h2>
+          <div class="stat-row"><span>Logs</span><strong id="bankLogs">0</strong></div>
+          <div class="stat-row"><span>Copper Ore</span><strong id="bankCopperOre">0</strong></div>
+          <div class="stat-row"><span>Copper Bars</span><strong id="bankCopperBars">0</strong></div>
+        </section>
+
+        <section class="panel-section">
+          <h2>First Island Charter</h2>
+          <ul class="quest-list">
+            <li id="questLogs">Chop 3 logs</li>
+            <li id="questOre">Mine 3 copper ore</li>
+            <li id="questBar">Smelt 1 copper bar</li>
+            <li id="questSale">Sell any material</li>
+            <li id="questSlime">Defeat 1 slime</li>
+          </ul>
+          <p id="questStatus">Charter in progress.</p>
         </section>
 
         <section class="panel-section">
           <h2>World</h2>
-          <p id="worldPrompt">Find a tree and start chopping.</p>
+          <p id="worldPrompt">Gather, craft, trade, and train.</p>
           <button id="resetSave" type="button">Reset Save</button>
         </section>
       </aside>
@@ -94,8 +114,3 @@
     <script type="module" src="src/main.js"></script>
   </body>
 </html>
-
-
-
-
-

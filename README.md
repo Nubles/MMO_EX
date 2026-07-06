@@ -4,17 +4,21 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 
 ## Playable Features
 
-- Top-down canvas world with grass, paths, water, a cabin, a market, trees, and NPCs.
+- Top-down canvas world with grass, paths, water, a cabin, a market, trees, rocks, slimes, interactable objects, and NPCs.
 - Keyboard movement with WASD or arrow keys.
 - Click-to-move navigation.
 - Click trees to walk over and chop them.
 - Woodcutting XP, levels, logs, stumps, and timed tree respawn.
 - Timber market: sell logs for coins and buy an iron axe upgrade.
 - Copper mining: mine rocks for copper ore and Mining XP.
-- Prospector market: sell copper ore for coins.
+- Prospector market: sell copper ore or copper bars for coins.
+- Bank chest: deposit and withdraw logs, copper ore, and copper bars.
+- Furnace workshop: smelt copper ore into copper bars for Smithing XP.
+- Training slimes with Attack XP, coin rewards, HP, and respawns.
+- First Island Charter quest tying gathering, smithing, trading, and combat into one starter loop.
 - Equipment display with faster chopping once the iron axe is owned.
 - Chat-style world messages.
-- Local browser save for position, inventory, XP, and resource timers.
+- Local browser save for position, inventory, skills, bank, quest progress, resources, and slime timers.
 - Reset-save button.
 
 ## Controls
@@ -24,7 +28,10 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Click a tree: walk to it and chop when close.
 - Click an NPC: read their line.
 - Stand near the Timber Buyer: use the market buttons to sell logs or buy the iron axe.
-- Stand near the Prospector: sell copper ore.
+- Stand near the Prospector: sell copper ore or copper bars.
+- Stand near the Bank chest: deposit or withdraw materials.
+- Stand near the Furnace: smelt copper ore into bars.
+- Click a training slime: walk over and attack it.
 
 ## Run Locally
 
@@ -48,11 +55,7 @@ The repository includes a GitHub Actions workflow at `.github/workflows/pages.ym
 
 Next strong steps:
 
-- Add banking and storage for gathered materials.
-- Add smithing so copper ore can become bars and starter equipment.
-- Add a larger map with region exits.
-- Add basic combat and loot.
+- Add a larger map with region exits and distinct biomes.
+- Add starter crafting and equipment beyond the iron axe.
 - Add sprite assets or generated tile art.
 - Add real multiplayer presence through a backend such as Cloudflare Workers, Supabase, Firebase, or another realtime service.
-
-

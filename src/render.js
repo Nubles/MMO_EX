@@ -60,7 +60,9 @@ export function renderGame(ctx, game, view) {
 
   drawTerrain(ctx, world);
   drawMapDetails(ctx, world);
+  drawWorldObjects(ctx, world, hover?.object);
   drawResources(ctx, world, hover?.resource, activeChop);
+  drawSlimes(ctx, world, hover?.slime, activeChop);
   drawNpcs(ctx, world);
   drawTarget(ctx, player);
   drawPlayer(ctx, player, performance.now());
@@ -108,6 +110,72 @@ function drawMapDetails(ctx, world) {
   ctx.strokeRect(0, 0, world.width * TILE_SIZE, world.height * TILE_SIZE);
 }
 
+function drawWorldObjects(ctx, world, hoveredObject) {
+  for (const object of world.objects || []) {
+    const hovered = hoveredObject?.id === object.id;
+    if (object.type === "bank") {
+      drawShadow(ctx, object.x, object.y + 12, 24, 9);
+      ctx.fillStyle = hovered ? "#9a6a36" : "#704b28";
+      roundedRect(ctx, object.x - 23, object.y - 18, 46, 32, 6);
+      ctx.fill();
+      ctx.fillStyle = "#d7b46a";
+      roundedRect(ctx, object.x - 7, object.y - 6, 14, 10, 3);
+      ctx.fill();
+      ctx.fillStyle = "#fff4d2";
+      ctx.font = "700 12px ui-sans-serif, system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("Bank", object.x, object.y - 28);
+    }
+    if (object.type === "workshop") {
+      drawShadow(ctx, object.x, object.y + 14, 28, 10);
+      ctx.fillStyle = hovered ? "#9d5f42" : "#703d30";
+      roundedRect(ctx, object.x - 22, object.y - 20, 44, 38, 8);
+      ctx.fill();
+      ctx.fillStyle = "#f0a34b";
+      circle(ctx, object.x, object.y - 2, 10);
+      ctx.fill();
+      ctx.fillStyle = "#fff4d2";
+      ctx.font = "700 12px ui-sans-serif, system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("Furnace", object.x, object.y - 31);
+    }
+  }
+}
+
+function drawSlimes(ctx, world, hoveredSlime, activeChop) {
+  for (const slime of world.slimes || []) {
+    const hovered = hoveredSlime?.id === slime.id;
+    const active = activeChop?.slimeId === slime.id;
+    if (slime.defeated) {
+      drawShadow(ctx, slime.x, slime.y + 9, 18, 6);
+      ctx.fillStyle = "rgba(111, 164, 103, 0.35)";
+      roundedRect(ctx, slime.x - 18, slime.y - 4, 36, 12, 8);
+      ctx.fill();
+      continue;
+    }
+    const pulse = active ? 3 + Math.sin(performance.now() / 80) * 1.5 : 0;
+    drawShadow(ctx, slime.x, slime.y + 16, 21, 8);
+    ctx.fillStyle = hovered ? "#8ccf7e" : "#5fa64f";
+    circle(ctx, slime.x, slime.y, 20 + pulse);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    circle(ctx, slime.x - 7, slime.y - 8, 4);
+    ctx.fill();
+    ctx.fillStyle = "#20301e";
+    circle(ctx, slime.x + 6, slime.y - 3, 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff4d2";
+    ctx.font = "700 11px ui-sans-serif, system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(`${slime.hp}/${slime.maxHp}`, slime.x, slime.y - 28);
+    if (hovered || active) {
+      ctx.strokeStyle = active ? "#ffd87b" : "rgba(255, 244, 210, 0.75)";
+      ctx.lineWidth = 2;
+      circle(ctx, slime.x, slime.y, 27 + pulse);
+      ctx.stroke();
+    }
+  }
+}
 function drawResources(ctx, world, hoveredResource, activeChop) {
   for (const resource of world.resources) {
     const isHovered = hoveredResource?.id === resource.id;
@@ -363,6 +431,8 @@ function roundedRect(ctx, x, y, width, height, radius) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+
+
 
 
 
