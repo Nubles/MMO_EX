@@ -1,6 +1,8 @@
 const LEVEL_XP = [0, 100, 260, 500, 860, 1380, 2100, 3060, 4300, 5860, 7780];
 const WOODCUTTING_REWARD_XP = 24;
+export const MINING_REWARD_XP = 30;
 export const LOG_SELL_PRICE = 4;
+export const COPPER_ORE_SELL_PRICE = 6;
 export const IRON_AXE_COST = 40;
 export const AXES = {
   bronze: {
@@ -26,10 +28,12 @@ export function createProgression(saved = {}) {
   return {
     inventory: {
       logs: Math.max(0, Number(saved.inventory?.logs) || 0),
+      copperOre: Math.max(0, Number(saved.inventory?.copperOre) || 0),
       coins: Math.max(0, Number(saved.inventory?.coins) || 0),
     },
     skills: {
       woodcuttingXp: Math.max(0, Number(saved.skills?.woodcuttingXp) || 0),
+      miningXp: Math.max(0, Number(saved.skills?.miningXp) || 0),
     },
     equipment: {
       axe,
@@ -53,21 +57,27 @@ export function awardWoodcutting(progress) {
   };
 }
 
-export function getWoodcuttingView(progress) {
-  const xp = progress.skills.woodcuttingXp;
-  const level = getLevelForXp(xp);
-  const currentLevelXp = getXpForLevel(level);
-  const nextLevelXp = getXpForLevel(level + 1);
-  const span = Math.max(1, nextLevelXp - currentLevelXp);
-  const progressToNext = Math.min(1, Math.max(0, (xp - currentLevelXp) / span));
+export function awardMining(progress) {
+  const beforeLevel = getLevelForXp(progress.skills.miningXp);
+  progress.inventory.copperOre += 1;
+  progress.skills.miningXp += MINING_REWARD_XP;
+  const afterLevel = getLevelForXp(progress.skills.miningXp);
 
   return {
-    level,
-    xp,
-    nextLevelXp,
-    currentLevelXp,
-    progressToNext,
+    item: "copperOre",
+    amount: 1,
+    xp: MINING_REWARD_XP,
+    leveledUp: afterLevel > beforeLevel,
+    level: afterLevel,
   };
+}
+
+export function getWoodcuttingView(progress) {
+  return getSkillView(progress.skills.woodcuttingXp);
+}
+
+export function getMiningView(progress) {
+  return getSkillView(progress.skills.miningXp);
 }
 
 export function getAxeView(progress) {
@@ -103,6 +113,26 @@ export function sellAllLogs(progress) {
   };
 }
 
+export function sellAllCopperOre(progress) {
+  const ore = progress.inventory.copperOre;
+  if (ore <= 0) {
+    return {
+      ok: false,
+      reason: "no_copper_ore",
+    };
+  }
+
+  const coinsEarned = ore * COPPER_ORE_SELL_PRICE;
+  progress.inventory.copperOre = 0;
+  progress.inventory.coins += coinsEarned;
+
+  return {
+    ok: true,
+    oreSold: ore,
+    coinsEarned,
+  };
+}
+
 export function buyIronAxe(progress) {
   if (progress.equipment.ownedAxes.includes("iron")) {
     return {
@@ -134,15 +164,33 @@ export function serializeProgression(progress) {
   return {
     inventory: {
       logs: progress.inventory.logs,
+      copperOre: progress.inventory.copperOre,
       coins: progress.inventory.coins,
     },
     skills: {
       woodcuttingXp: progress.skills.woodcuttingXp,
+      miningXp: progress.skills.miningXp,
     },
     equipment: {
       axe: progress.equipment.axe,
       ownedAxes: [...progress.equipment.ownedAxes],
     },
+  };
+}
+
+function getSkillView(xp) {
+  const level = getLevelForXp(xp);
+  const currentLevelXp = getXpForLevel(level);
+  const nextLevelXp = getXpForLevel(level + 1);
+  const span = Math.max(1, nextLevelXp - currentLevelXp);
+  const progressToNext = Math.min(1, Math.max(0, (xp - currentLevelXp) / span));
+
+  return {
+    level,
+    xp,
+    nextLevelXp,
+    currentLevelXp,
+    progressToNext,
   };
 }
 

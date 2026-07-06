@@ -85,3 +85,68 @@ test("iron axe chops faster than bronze axe", () => {
   assert.equal(progression.getChopDuration(bronze, 1700), 1700);
   assert.equal(progression.getChopDuration(iron, 1700), 1105);
 });
+
+// Stage 3 mining rules
+test("old saves default copper ore and Mining XP to zero", () => {
+  const state = progression.createProgression({
+    inventory: { logs: 2, coins: 8 },
+    skills: { woodcuttingXp: 24 },
+  });
+
+  assert.equal(state.inventory.copperOre, 0);
+  assert.equal(state.skills.miningXp, 0);
+});
+
+test("mining reward adds copper ore and Mining XP", () => {
+  assert.equal(typeof progression.awardMining, "function");
+
+  const state = progression.createProgression();
+  const result = progression.awardMining(state);
+
+  assert.equal(result.item, "copperOre");
+  assert.equal(result.amount, 1);
+  assert.equal(result.xp, 30);
+  assert.equal(state.inventory.copperOre, 1);
+  assert.equal(state.skills.miningXp, 30);
+});
+
+test("Mining view exposes level and next XP", () => {
+  assert.equal(typeof progression.getMiningView, "function");
+
+  const state = progression.createProgression({
+    inventory: { copperOre: 0 },
+    skills: { miningXp: 30 },
+  });
+  const mining = progression.getMiningView(state);
+
+  assert.equal(mining.level, 1);
+  assert.equal(mining.xp, 30);
+  assert.equal(mining.nextLevelXp, 100);
+  assert.equal(mining.progressToNext, 0.3);
+});
+
+test("selling zero copper ore is blocked", () => {
+  assert.equal(typeof progression.sellAllCopperOre, "function");
+
+  const state = progression.createProgression();
+  const result = progression.sellAllCopperOre(state);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "no_copper_ore");
+  assert.equal(state.inventory.coins, 0);
+});
+
+test("selling four copper ore gives twenty four coins and clears ore", () => {
+  assert.equal(typeof progression.sellAllCopperOre, "function");
+
+  const state = progression.createProgression({
+    inventory: { copperOre: 4, coins: 3 },
+  });
+  const result = progression.sellAllCopperOre(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.oreSold, 4);
+  assert.equal(result.coinsEarned, 24);
+  assert.equal(state.inventory.copperOre, 0);
+  assert.equal(state.inventory.coins, 27);
+});
