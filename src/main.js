@@ -20,7 +20,9 @@ import {
   getAttackView,
   getAxeView,
   getChopDuration,
+  getGuidebook,
   getMiningView,
+  getRegionStatus,
   getSmithingView,
   getWeaponDamage,
   getWeaponView,
@@ -65,7 +67,7 @@ const elements = Object.fromEntries([
   "miningLevel", "miningProgress", "miningXp", "smithingLevel", "smithingProgress", "smithingXp", "attackLevel", "attackProgress", "attackXp",
   "hpValue", "hpFill", "axeName", "axeSpeed", "weaponName", "weaponDamage", "armorName", "armorProtection", "marketStatus", "sellLogs", "sellOakLogs", "buyIronAxe", "sellCopperOre", "sellCopperBars", "smeltCopperBar", "smeltBronzeBar", "craftCopperSword", "craftBronzeShield",
   "depositLogs", "withdrawLogs", "depositOakLogs", "withdrawOakLogs", "depositCopperOre", "withdrawCopperOre", "depositTinOre", "withdrawTinOre", "depositCopperBars", "withdrawCopperBars", "depositBronzeBars", "withdrawBronzeBars",
-  "bankLogs", "bankOakLogs", "bankCopperOre", "bankTinOre", "bankCopperBars", "bankBronzeBars", "questLogs", "questOre", "questBar", "questSale", "questSlime", "questStatus", "worldPrompt", "chatLog", "resetSave",
+  "bankLogs", "bankOakLogs", "bankCopperOre", "bankTinOre", "bankCopperBars", "bankBronzeBars", "questLogs", "questOre", "questBar", "questSale", "questSlime", "questStatus", "guideRecommendedTitle", "guideRecommendedDetail", "guideRegions", "guideRecipes", "guideHints", "worldPrompt", "chatLog", "resetSave",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 const save = loadSave();
@@ -117,7 +119,7 @@ canvas.addEventListener("pointerdown", (event) => {
 
   if (resource) return chooseResource(resource);
   if (slime) return chooseSlime(slime);
-  if (object) return pushChat(`${object.label}: stand nearby to use its panel actions.`);
+  if (object) return interactWithObject(object);
   if (npc) return talkToNpc(npc);
 
   game.pendingResourceId = null;
@@ -342,6 +344,19 @@ function bankAction(objectId, action, successText) {
   updateUi();
 }
 
+function interactWithObject(object) {
+  if (object.type === "regionGate") {
+    const region = getRegionStatus(progress).find((item) => item.id === object.regionId);
+    if (!region?.unlocked) {
+      pushChat(object.label + ": " + (region?.requirement || "This path is locked."));
+      return;
+    }
+    pushChat(object.label + ": " + region.name + " is open. The ridge road is yours.");
+    return;
+  }
+  pushChat(`${object.label}: stand nearby to use its panel actions.`);
+}
+
 function talkToNpc(npc) {
   pushChat(`${npc.name}: ${npc.line}`);
   if (npc.id === "merchant") pushChat(`Logs sell for ${LOG_SELL_PRICE}; oak logs sell for ${OAK_LOG_SELL_PRICE}. Iron axe costs ${IRON_AXE_COST} coins.`);
@@ -383,6 +398,7 @@ function updateUi(now = performance.now()) {
   elements.bankCopperBars.textContent = progress.bank.copperBars;
   elements.bankBronzeBars.textContent = progress.bank.bronzeBars;
   updateQuestUi();
+  updateGuidebookUi();
   updateActionUi();
   elements.saveStatus.textContent = now < saveFlashUntil ? "Progress saved locally" : "Local browser save";
   updatePrompt();
@@ -398,6 +414,25 @@ function updateQuestUi() {
   const map = { questLogs: "logs", questOre: "ore", questBar: "bar", questSale: "sale", questSlime: "slime" };
   for (const [id, key] of Object.entries(map)) elements[id].classList.toggle("complete", progress.quest.objectives[key]);
   elements.questStatus.textContent = progress.quest.completed ? "Charter Complete" : "Charter in progress.";
+}
+
+function updateGuidebookUi() {
+  const guidebook = getGuidebook(progress);
+  elements.guideRecommendedTitle.textContent = guidebook.recommended.title;
+  elements.guideRecommendedDetail.textContent = guidebook.recommended.detail;
+  renderGuideList(elements.guideRegions, guidebook.regions, (region) => `${region.name}: ${region.status}`);
+  renderGuideList(elements.guideRecipes, guidebook.recipes, (recipe) => `${recipe.name}: ${recipe.ingredients} at ${recipe.station}`);
+  renderGuideList(elements.guideHints, guidebook.hints, (hint) => `${hint.label}: ${hint.location}`);
+}
+
+function renderGuideList(element, items, getText) {
+  element.replaceChildren(...items.map((item) => {
+    const row = document.createElement("li");
+    row.textContent = getText(item);
+    if (item.unlocked) row.classList.add("complete");
+    if (item.status === "Coming soon") row.classList.add("locked");
+    return row;
+  }));
 }
 
 function updateActionUi() {
@@ -431,7 +466,7 @@ function updatePrompt() {
   if (game.activeChop?.slimeId) { elements.worldPrompt.textContent = "Fighting slime..."; return; }
   if (game.activeChop?.resourceId) { const r = world.resources.find((item) => item.id === game.activeChop.resourceId); elements.worldPrompt.textContent = r?.type === "copperRock" ? "Mining copper..." : r?.type === "tinRock" ? "Mining tin..." : r?.type === "oakTree" ? "Chopping oak..." : "Chopping tree..."; return; }
   if (game.hover?.slime) { elements.worldPrompt.textContent = "Training slime: click to attack."; return; }
-  if (game.hover?.object) { elements.worldPrompt.textContent = `${game.hover.object.label}: stand nearby to use actions.`; return; }
+  if (game.hover?.object) { elements.worldPrompt.textContent = game.hover.object.type === "regionGate" ? `${game.hover.object.label}: click to check region access.` : `${game.hover.object.label}: stand nearby to use actions.`; return; }
   if (game.hover?.resource) { elements.worldPrompt.textContent = game.hover.resource.depleted ? `${game.hover.resource.label} is depleted.` : `${game.hover.resource.label}: click to gather.`; return; }
   if (game.hover?.npc) { elements.worldPrompt.textContent = `${game.hover.npc.name}: click to talk.`; return; }
   elements.worldPrompt.textContent = "Finish the charter, then push east into Ashwood Ridge.";

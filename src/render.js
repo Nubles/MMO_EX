@@ -140,7 +140,32 @@ function drawWorldObjects(ctx, world, hoveredObject) {
       ctx.textAlign = "center";
       ctx.fillText("Furnace", object.x, object.y - 31);
     }
+    if (object.type === "regionGate") {
+      drawRegionGate(ctx, object.x, object.y, hovered);
+    }
   }
+}
+
+function drawRegionGate(ctx, x, y, hovered) {
+  drawShadow(ctx, x, y + 17, 34, 10);
+  ctx.strokeStyle = hovered ? "#ffe19a" : "#d7b46a";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(x - 24, y + 20);
+  ctx.lineTo(x - 24, y - 22);
+  ctx.quadraticCurveTo(x, y - 44, x + 24, y - 22);
+  ctx.lineTo(x + 24, y + 20);
+  ctx.stroke();
+
+  ctx.fillStyle = hovered ? "#81613a" : "#5f462c";
+  roundedRect(ctx, x - 26, y - 12, 52, 22, 5);
+  ctx.fill();
+  ctx.fillStyle = "#fff4d2";
+  ctx.font = "800 11px ui-sans-serif, system-ui";
+  ctx.textAlign = "center";
+  ctx.fillText("Ridge", x, y + 3);
+  ctx.font = "700 12px ui-sans-serif, system-ui";
+  ctx.fillText("Gate", x, y - 50);
 }
 
 function drawSlimes(ctx, world, hoveredSlime, activeChop) {

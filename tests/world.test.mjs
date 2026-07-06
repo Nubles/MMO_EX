@@ -31,3 +31,12 @@ test("world includes tin rocks for bronze smithing", () => {
   assert.equal(tinRocks[0].label, "Tin rock");
   assert.match(tinRocks[0].id, /^tin-rock-/);
 });
+
+test("world includes a Ridge Gate object for Ashwood Ridge", () => {
+  const world = createWorld();
+  const gate = world.objects.find((object) => object.id === "ridgeGate");
+
+  assert.equal(gate.type, "regionGate");
+  assert.equal(gate.label, "Ridge Gate");
+  assert.equal(gate.regionId, "ashwoodRidge");
+});

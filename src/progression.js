@@ -66,6 +66,45 @@ const SLIME_REWARDS = {
   ridgeSlime: { xp: RIDGE_SLIME_ATTACK_REWARD_XP, coins: 8 },
 };
 
+export const REGIONS = [
+  {
+    id: "firstIsland",
+    name: "First Island",
+    description: "Starter village, market, bank, furnace, copper mine, and training slimes.",
+    requirement: "Always available",
+  },
+  {
+    id: "ashwoodRidge",
+    name: "Ashwood Ridge",
+    description: "Eastern ridge with oak trees, tin rocks, and tougher slimes.",
+    requirement: "Complete the First Island Charter",
+  },
+  {
+    id: "ironHollow",
+    name: "Iron Hollow",
+    description: "Future mining pass for iron ore and stronger equipment.",
+    requirement: "Coming soon",
+    comingSoon: true,
+  },
+];
+
+export const GUIDEBOOK_RECIPES = [
+  { id: "copperBar", name: "Copper bar", ingredients: "2 copper ore", station: "Furnace" },
+  { id: "bronzeBar", name: "Bronze bar", ingredients: "1 copper ore + 1 tin ore", station: "Furnace" },
+  { id: "copperSword", name: "Copper sword", ingredients: "2 copper bars + 1 oak log", station: "Furnace" },
+  { id: "bronzeShield", name: "Bronze shield", ingredients: "2 bronze bars + 1 oak log", station: "Furnace" },
+];
+
+export const GUIDEBOOK_HINTS = [
+  { id: "logs", label: "Logs", location: "Trees around First Island" },
+  { id: "oakLogs", label: "Oak logs", location: "Oak trees in Ashwood Ridge" },
+  { id: "copperOre", label: "Copper ore", location: "Copper mine west of the village" },
+  { id: "tinOre", label: "Tin ore", location: "Tin rocks in Ashwood Ridge" },
+  { id: "slimes", label: "Slimes", location: "Training field and Ashwood Ridge" },
+  { id: "furnace", label: "Furnace", location: "Workshop east of the market" },
+  { id: "bank", label: "Bank", location: "Chest beside the guild cabin" },
+];
+
 export function createProgression(saved = {}) {
   saved = saved || {};
   const ownedAxes = normalizeOwnedAxes(saved.equipment?.ownedAxes);
@@ -226,6 +265,31 @@ export function getArmorView(progress) {
 
 export function getDamageReduction(progress) {
   return getArmorView(progress).damageReduction;
+}
+
+export function getRegionStatus(progress) {
+  return REGIONS.map((region) => {
+    if (region.id === "firstIsland") {
+      return { ...region, unlocked: true, status: "Unlocked" };
+    }
+    if (region.comingSoon) {
+      return { ...region, unlocked: false, status: "Coming soon" };
+    }
+    if (region.id === "ashwoodRidge") {
+      const unlocked = Boolean(progress.quest.completed);
+      return { ...region, unlocked, status: unlocked ? "Unlocked" : "Locked" };
+    }
+    return { ...region, unlocked: false, status: "Locked" };
+  });
+}
+
+export function getGuidebook(progress) {
+  return {
+    recommended: getRecommendedStep(progress),
+    regions: getRegionStatus(progress),
+    recipes: GUIDEBOOK_RECIPES.map((recipe) => ({ ...recipe })),
+    hints: GUIDEBOOK_HINTS.map((hint) => ({ ...hint })),
+  };
 }
 
 export function getChopDuration(progress, baseDuration) {
@@ -620,6 +684,35 @@ function normalizeOwnedWeapons(savedWeapons) {
 function normalizeOwnedArmor(savedArmor) {
   const saved = Array.isArray(savedArmor) ? savedArmor : [];
   return [...new Set(["clothTunic", ...saved.filter((armor) => ARMOR[armor])])];
+}
+
+function getRecommendedStep(progress) {
+  if (!progress.quest.completed) {
+    return {
+      id: "finishCharter",
+      title: "Finish the First Island Charter",
+      detail: "Gather, smelt, trade, and defeat a slime to unlock Ashwood Ridge.",
+    };
+  }
+  if (!progress.equipment.ownedWeapons.includes("copperSword")) {
+    return {
+      id: "craftCopperSword",
+      title: "Craft a copper sword",
+      detail: "Use 2 copper bars and 1 oak log at the furnace before deeper combat.",
+    };
+  }
+  if (!progress.equipment.ownedArmor.includes("bronzeShield")) {
+    return {
+      id: "craftBronzeShield",
+      title: "Craft a bronze shield",
+      detail: "Mine tin in Ashwood Ridge, smelt bronze bars, then craft protection.",
+    };
+  }
+  return {
+    id: "prepareIronHollow",
+    title: "Prepare for Iron Hollow",
+    detail: "Starter gear is complete. Stock supplies for the next region expansion.",
+  };
 }
 
 function normalizeQuest(savedQuest = {}) {

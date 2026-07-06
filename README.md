@@ -4,7 +4,7 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 
 ## Playable Features
 
-- Top-down canvas world with grass, paths, water, a cabin, a market, Ashwood Ridge, trees, rocks, slimes, interactable objects, and NPCs.
+- Top-down canvas world with grass, paths, water, a cabin, a market, Ashwood Ridge, trees, rocks, slimes, interactable objects, region gates, and NPCs.
 - Keyboard movement with WASD or arrow keys.
 - Click-to-move navigation.
 - Click trees to walk over and chop them.
@@ -16,6 +16,8 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Furnace workshop: smelt copper bars, smelt bronze bars, craft a copper sword, and craft a bronze shield.
 - Training slimes and tougher ridge slimes with Attack XP, coin rewards, HP, and respawns.
 - First Island Charter quest tying gathering, smithing, trading, and combat into one starter loop.
+- Guidebook panel with recommended next step, region unlocks, known recipes, and resource hints.
+- Ridge Gate marker that explains Ashwood Ridge access requirements.
 - Ashwood Ridge: oak trees, oak logs, tin rocks, ridge slimes, and copper/bronze crafting upgrades.
 - Equipment display with faster chopping, weapon damage, and armor protection.
 - Chat-style world messages.
@@ -28,6 +30,7 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Mouse click: move to a spot.
 - Click a tree: walk to it and chop when close.
 - Click an NPC: read their line.
+- Click the Ridge Gate: check whether Ashwood Ridge is unlocked.
 - Stand near the Timber Buyer: use the market buttons to sell logs, sell oak logs, or buy the iron axe.
 - Stand near the Prospector: sell copper ore or copper bars.
 - Stand near the Bank chest: deposit or withdraw materials.
@@ -56,7 +59,7 @@ The repository includes a GitHub Actions workflow at `.github/workflows/pages.ym
 
 Next strong steps:
 
-- Add region gates, requirements, and named destinations.
+- Add hard-gated named destinations and travel transitions.
 - Add iron ore, iron gear, and deeper crafting recipes.
 - Add sprite assets or generated tile art.
 - Add real multiplayer presence through a backend such as Cloudflare Workers, Supabase, Firebase, or another realtime service.

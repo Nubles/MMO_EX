@@ -410,3 +410,57 @@ test("bronze shield reduces incoming player damage", () => {
   assert.equal(result.damageTaken, 2);
   assert.equal(state.combat.hp, 18);
 });
+
+// Stage 7 region gates and guidebook
+test("region status locks Ashwood Ridge until the charter is complete", () => {
+  assert.equal(typeof progression.getRegionStatus, "function");
+
+  const early = progression.createProgression();
+  const completed = progression.createProgression({ quest: { completed: true } });
+
+  const earlyRegions = progression.getRegionStatus(early);
+  const completedRegions = progression.getRegionStatus(completed);
+
+  assert.deepEqual(earlyRegions.map((region) => [region.id, region.unlocked]), [
+    ["firstIsland", true],
+    ["ashwoodRidge", false],
+    ["ironHollow", false],
+  ]);
+  assert.equal(earlyRegions[1].requirement, "Complete the First Island Charter");
+  assert.equal(completedRegions[1].unlocked, true);
+  assert.equal(completedRegions[1].status, "Unlocked");
+  assert.equal(completedRegions[2].status, "Coming soon");
+});
+
+test("guidebook recommends the next useful progression step", () => {
+  assert.equal(typeof progression.getGuidebook, "function");
+
+  const early = progression.createProgression();
+  const chartered = progression.createProgression({ quest: { completed: true } });
+  const armed = progression.createProgression({
+    quest: { completed: true },
+    equipment: { weapon: "copperSword", ownedWeapons: ["trainingSword", "copperSword"] },
+  });
+  const ready = progression.createProgression({
+    quest: { completed: true },
+    equipment: {
+      weapon: "copperSword",
+      ownedWeapons: ["trainingSword", "copperSword"],
+      armor: "bronzeShield",
+      ownedArmor: ["clothTunic", "bronzeShield"],
+    },
+  });
+
+  assert.equal(progression.getGuidebook(early).recommended.id, "finishCharter");
+  assert.equal(progression.getGuidebook(chartered).recommended.id, "craftCopperSword");
+  assert.equal(progression.getGuidebook(armed).recommended.id, "craftBronzeShield");
+  assert.equal(progression.getGuidebook(ready).recommended.id, "prepareIronHollow");
+});
+
+test("guidebook lists starter recipes and resource hints", () => {
+  const guidebook = progression.getGuidebook(progression.createProgression({ quest: { completed: true } }));
+
+  assert.deepEqual(guidebook.recipes.map((recipe) => recipe.id), ["copperBar", "bronzeBar", "copperSword", "bronzeShield"]);
+  assert.deepEqual(guidebook.hints.map((hint) => hint.id), ["logs", "oakLogs", "copperOre", "tinOre", "slimes", "furnace", "bank"]);
+  assert.equal(guidebook.regions.find((region) => region.id === "ashwoodRidge").unlocked, true);
+});

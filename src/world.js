@@ -26,6 +26,7 @@ const NPCS = [
 const OBJECTS = [
   { id: "bank", type: "bank", label: "Bank chest", x: 17.5 * TILE_SIZE, y: 15.5 * TILE_SIZE, radius: 34 },
   { id: "workshop", type: "workshop", label: "Furnace", x: 29.5 * TILE_SIZE, y: 14.5 * TILE_SIZE, radius: 36 },
+  { id: "ridgeGate", type: "regionGate", label: "Ridge Gate", regionId: "ashwoodRidge", x: 41.5 * TILE_SIZE, y: 16.5 * TILE_SIZE, radius: 42 },
 ];
 
 export function createWorld(savedResources = [], savedSlimes = []) {
