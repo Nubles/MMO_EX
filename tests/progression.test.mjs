@@ -159,7 +159,7 @@ test("old saves default bank, bars, combat, smithing, and quest state", () => {
   });
 
   assert.equal(state.inventory.copperBars, 0);
-  assert.deepEqual(state.bank, { logs: 0, copperOre: 0, copperBars: 0 });
+  assert.deepEqual(state.bank, { logs: 0, oakLogs: 0, copperOre: 0, copperBars: 0 });
   assert.equal(state.skills.smithingXp, 0);
   assert.equal(state.skills.attackXp, 0);
   assert.equal(state.combat.hp, 20);
@@ -240,4 +240,86 @@ test("quest completion grants reward once", () => {
   assert.equal(second.reason, "already_completed");
   assert.equal(state.inventory.coins, 25);
   assert.equal(state.quest.completed, true);
+});
+
+// Ashwood Ridge rules
+test("old saves default oak logs and weapon state", () => {
+  const state = progression.createProgression({
+    inventory: { logs: 1, copperOre: 2, copperBars: 1, coins: 3 },
+    equipment: { axe: "iron", ownedAxes: ["bronze", "iron"] },
+  });
+
+  assert.equal(state.inventory.oakLogs, 0);
+  assert.equal(state.bank.oakLogs, 0);
+  assert.equal(progression.getWeaponView(state).id, "trainingSword");
+  assert.equal(progression.getWeaponDamage(state), 4);
+});
+
+test("oak woodcutting reward adds oak logs and higher Woodcutting XP", () => {
+  assert.equal(typeof progression.awardOakWoodcutting, "function");
+
+  const state = progression.createProgression();
+  const result = progression.awardOakWoodcutting(state);
+
+  assert.equal(result.item, "oakLogs");
+  assert.equal(result.amount, 1);
+  assert.equal(result.xp, 45);
+  assert.equal(state.inventory.oakLogs, 1);
+  assert.equal(state.skills.woodcuttingXp, 45);
+});
+
+test("selling oak logs grants ten coins each and clears oak logs", () => {
+  assert.equal(typeof progression.sellAllOakLogs, "function");
+
+  const state = progression.createProgression({ inventory: { oakLogs: 3, coins: 2 } });
+  const result = progression.sellAllOakLogs(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.logsSold, 3);
+  assert.equal(result.coinsEarned, 30);
+  assert.equal(state.inventory.oakLogs, 0);
+  assert.equal(state.inventory.coins, 32);
+});
+
+test("crafting copper sword consumes bars and oak logs, grants Smithing XP, and persists", () => {
+  assert.equal(typeof progression.craftCopperSword, "function");
+
+  const state = progression.createProgression({ inventory: { copperBars: 2, oakLogs: 1 } });
+  const result = progression.craftCopperSword(state);
+  const saved = progression.serializeProgression(state);
+  const loaded = progression.createProgression(saved);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.weapon.id, "copperSword");
+  assert.equal(state.inventory.copperBars, 0);
+  assert.equal(state.inventory.oakLogs, 0);
+  assert.equal(state.skills.smithingXp, 30);
+  assert.equal(progression.getWeaponView(loaded).id, "copperSword");
+  assert.equal(progression.getWeaponDamage(loaded), 6);
+});
+
+test("crafting copper sword blocks missing materials and duplicate ownership", () => {
+  const missing = progression.createProgression({ inventory: { copperBars: 1, oakLogs: 0 } });
+  const crafted = progression.createProgression({ inventory: { copperBars: 3, oakLogs: 2 } });
+
+  const missingResult = progression.craftCopperSword(missing);
+  const firstCraft = progression.craftCopperSword(crafted);
+  const secondCraft = progression.craftCopperSword(crafted);
+
+  assert.equal(missingResult.ok, false);
+  assert.equal(missingResult.reason, "missing_materials");
+  assert.equal(firstCraft.ok, true);
+  assert.equal(secondCraft.ok, false);
+  assert.equal(secondCraft.reason, "already_owned");
+});
+
+test("ridge slime defeat grants stronger Attack XP and coins", () => {
+  const state = progression.createProgression();
+  const result = progression.awardSlimeDefeat(state, "ridgeSlime");
+
+  assert.equal(result.ok, true);
+  assert.equal(result.xp, 35);
+  assert.equal(result.coins, 8);
+  assert.equal(state.skills.attackXp, 35);
+  assert.equal(state.inventory.coins, 8);
 });

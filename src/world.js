@@ -1,6 +1,6 @@
 export const TILE_SIZE = 48;
-export const WORLD_WIDTH = 42;
-export const WORLD_HEIGHT = 30;
+export const WORLD_WIDTH = 56;
+export const WORLD_HEIGHT = 34;
 export const TREE_RESPAWN_MS = 18000;
 export const COPPER_ROCK_RESPAWN_MS = 14000;
 export const SLIME_RESPAWN_MS = 12000;
@@ -10,13 +10,16 @@ export const ATTACK_DURATION_MS = 1200;
 export const INTERACTION_RADIUS = 72;
 
 const TREE_LAYOUT = [[8,6],[10,5],[12,7],[15,5],[18,7],[22,6],[26,8],[30,6],[34,9],[7,13],[12,15],[17,13],[24,14],[31,15],[36,13],[9,22],[14,24],[21,23],[28,24],[35,22]];
+const OAK_TREE_LAYOUT = [[44,8],[47,7],[50,9],[45,14],[49,15],[52,13]];
 const COPPER_ROCK_LAYOUT = [[4,18],[5,20],[7,19],[8,21],[10,20],[6,23],[11,23]];
 const SLIME_LAYOUT = [[32,20],[34,21],[36,20],[33,23]];
+const RIDGE_SLIME_LAYOUT = [[45,20],[49,22],[52,19]];
 
 const NPCS = [
   { id: "guide", name: "Island Guide", x: 20.5 * TILE_SIZE, y: 15.5 * TILE_SIZE, line: "Complete the island charter: gather, smith, trade, and train." },
   { id: "merchant", name: "Timber Buyer", x: 25.5 * TILE_SIZE, y: 17.5 * TILE_SIZE, line: "I buy logs and sell better axes. Stand nearby and use the market panel." },
   { id: "prospector", name: "Prospector", x: 7.5 * TILE_SIZE, y: 18.5 * TILE_SIZE, line: "Copper ore and bars have a good shine. Bring them here and I will pay." },
+  { id: "ridgeScout", name: "Ridge Scout", x: 42.5 * TILE_SIZE, y: 16.5 * TILE_SIZE, line: "Ashwood Ridge is rougher ground. Oak trees and sturdy slimes wait east of here." },
 ];
 
 const OBJECTS = [
@@ -29,9 +32,13 @@ export function createWorld(savedResources = [], savedSlimes = []) {
   const savedSlimeById = new Map((savedSlimes || []).map((slime) => [slime.id, slime]));
   const resources = [
     ...TREE_LAYOUT.map(([tileX, tileY], index) => createResource("tree", tileX, tileY, index, savedById)),
+    ...OAK_TREE_LAYOUT.map(([tileX, tileY], index) => createResource("oakTree", tileX, tileY, index, savedById)),
     ...COPPER_ROCK_LAYOUT.map(([tileX, tileY], index) => createResource("copperRock", tileX, tileY, index, savedById)),
   ];
-  const slimes = SLIME_LAYOUT.map(([tileX, tileY], index) => createSlime(tileX, tileY, index, savedSlimeById));
+  const slimes = [
+    ...SLIME_LAYOUT.map(([tileX, tileY], index) => createSlime("trainingSlime", tileX, tileY, index, savedSlimeById)),
+    ...RIDGE_SLIME_LAYOUT.map(([tileX, tileY], index) => createSlime("ridgeSlime", tileX, tileY, index, savedSlimeById)),
+  ];
 
   return { width: WORLD_WIDTH, height: WORLD_HEIGHT, tileSize: TILE_SIZE, resources, npcs: NPCS, objects: OBJECTS, slimes };
 }
@@ -46,10 +53,11 @@ export function serializeSlimes(slimes) {
 
 export function tileAt(tileX, tileY) {
   if (tileX < 0 || tileY < 0 || tileX >= WORLD_WIDTH || tileY >= WORLD_HEIGHT) return "void";
-  if (tileY >= 26 || tileX >= 39 || (tileX >= 34 && tileY >= 24)) return "water";
+  if (tileY >= 30 || tileX >= 54 || (tileX >= 34 && tileY >= 28)) return "water";
   if (tileX >= 18 && tileX <= 23 && tileY >= 10 && tileY <= 13) return "cabin";
   if (tileX >= 25 && tileX <= 29 && tileY >= 16 && tileY <= 18) return "market";
-  if ((tileX >= 3 && tileX <= 12 && tileY >= 18 && tileY <= 23) || (tileX >= 31 && tileX <= 37 && tileY >= 20 && tileY <= 24) || tileY === 16 || tileX === 20 || (tileY === 9 && tileX >= 5 && tileX <= 35)) return "path";
+  if (tileX >= 42 && tileX <= 53 && tileY >= 6 && tileY <= 24) return isRidgePath(tileX, tileY) ? "path" : "ridge";
+  if ((tileX >= 3 && tileX <= 12 && tileY >= 18 && tileY <= 23) || (tileX >= 31 && tileX <= 37 && tileY >= 20 && tileY <= 24) || tileY === 16 || tileX === 20 || (tileY === 9 && tileX >= 5 && tileX <= 35) || (tileY === 16 && tileX >= 35 && tileX <= 44)) return "path";
   if ((tileX + tileY) % 11 === 0) return "flowers";
   return "grass";
 }
@@ -132,38 +140,57 @@ export function getWorldBounds(world) {
 }
 
 function createResource(type, tileX, tileY, index, savedById) {
-  const id = type === "tree" ? `tree-${index + 1}` : `copper-rock-${index + 1}`;
+  const id = getResourceId(type, index);
   const saved = savedById.get(id);
   return {
     id,
     type,
-    label: type === "tree" ? "Tree" : "Copper rock",
+    label: getResourceLabel(type),
     tileX,
     tileY,
     x: (tileX + 0.5) * TILE_SIZE,
     y: (tileY + 0.5) * TILE_SIZE,
-    radius: type === "tree" ? 23 : 25,
+    radius: type === "copperRock" ? 25 : 23,
     depleted: Boolean(saved?.depleted),
     depletedUntil: Number(saved?.depletedUntil) || 0,
   };
 }
 
-function createSlime(tileX, tileY, index, savedById) {
-  const id = `slime-${index + 1}`;
+function createSlime(type, tileX, tileY, index, savedById) {
+  const ridge = type === "ridgeSlime";
+  const id = ridge ? `ridge-slime-${index + 1}` : `slime-${index + 1}`;
   const saved = savedById.get(id);
   const defeated = Boolean(saved?.defeated);
+  const maxHp = ridge ? 16 : 10;
   return {
     id,
-    type: "slime",
-    label: "Training slime",
+    type,
+    rewardType: type,
+    label: ridge ? "Ridge slime" : "Training slime",
     tileX,
     tileY,
     x: (tileX + 0.5) * TILE_SIZE,
     y: (tileY + 0.5) * TILE_SIZE,
-    radius: 20,
-    maxHp: 10,
-    hp: defeated ? 0 : Math.max(1, Math.min(10, Number(saved?.hp) || 10)),
+    radius: ridge ? 23 : 20,
+    maxHp,
+    hp: defeated ? 0 : Math.max(1, Math.min(maxHp, Number(saved?.hp) || maxHp)),
     defeated,
     respawnAt: Number(saved?.respawnAt) || 0,
   };
+}
+
+function getResourceId(type, index) {
+  if (type === "tree") return `tree-${index + 1}`;
+  if (type === "oakTree") return `oak-tree-${index + 1}`;
+  return `copper-rock-${index + 1}`;
+}
+
+function getResourceLabel(type) {
+  if (type === "tree") return "Tree";
+  if (type === "oakTree") return "Oak tree";
+  return "Copper rock";
+}
+
+function isRidgePath(tileX, tileY) {
+  return tileY === 16 || tileX === 48 || (tileY === 24 && tileX >= 42 && tileX <= 53);
 }

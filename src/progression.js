@@ -1,9 +1,13 @@
 const LEVEL_XP = [0, 100, 260, 500, 860, 1380, 2100, 3060, 4300, 5860, 7780];
 const WOODCUTTING_REWARD_XP = 24;
+export const OAK_WOODCUTTING_REWARD_XP = 45;
 export const MINING_REWARD_XP = 30;
 export const SMITHING_REWARD_XP = 20;
+export const COPPER_SWORD_SMITHING_XP = 30;
 export const ATTACK_REWARD_XP = 18;
+export const RIDGE_SLIME_ATTACK_REWARD_XP = 35;
 export const LOG_SELL_PRICE = 4;
+export const OAK_LOG_SELL_PRICE = 10;
 export const COPPER_ORE_SELL_PRICE = 6;
 export const COPPER_BAR_SELL_PRICE = 14;
 export const IRON_AXE_COST = 40;
@@ -23,25 +27,48 @@ export const AXES = {
     chopMultiplier: 0.65,
   },
 };
+export const WEAPONS = {
+  trainingSword: {
+    id: "trainingSword",
+    name: "Training sword",
+    damage: 4,
+    damageLabel: "4 damage",
+  },
+  copperSword: {
+    id: "copperSword",
+    name: "Copper sword",
+    damage: 6,
+    damageLabel: "6 damage",
+  },
+};
 
-const BANK_ITEMS = ["logs", "copperOre", "copperBars"];
+const BANK_ITEMS = ["logs", "oakLogs", "copperOre", "copperBars"];
 const QUEST_KEYS = ["logs", "ore", "bar", "sale", "slime"];
+const SLIME_REWARDS = {
+  trainingSlime: { xp: ATTACK_REWARD_XP, coins: 3 },
+  ridgeSlime: { xp: RIDGE_SLIME_ATTACK_REWARD_XP, coins: 8 },
+};
 
 export function createProgression(saved = {}) {
   saved = saved || {};
   const ownedAxes = normalizeOwnedAxes(saved.equipment?.ownedAxes);
   const savedAxe = saved.equipment?.axe;
   const axe = ownedAxes.includes(savedAxe) ? savedAxe : "bronze";
+  const ownedWeapons = normalizeOwnedWeapons(saved.equipment?.ownedWeapons);
+  const savedWeapon = saved.equipment?.weapon;
+  const weapon = ownedWeapons.includes(savedWeapon) ? savedWeapon : "trainingSword";
 
   return {
     inventory: {
       logs: readCount(saved.inventory?.logs),
+      oakLogs: readCount(saved.inventory?.oakLogs),
       copperOre: readCount(saved.inventory?.copperOre),
       copperBars: readCount(saved.inventory?.copperBars),
       coins: readCount(saved.inventory?.coins),
     },
     bank: {
       logs: readCount(saved.bank?.logs),
+      oakLogs: readCount(saved.bank?.oakLogs),
       copperOre: readCount(saved.bank?.copperOre),
       copperBars: readCount(saved.bank?.copperBars),
     },
@@ -59,6 +86,8 @@ export function createProgression(saved = {}) {
     equipment: {
       axe,
       ownedAxes,
+      weapon,
+      ownedWeapons,
     },
   };
 }
@@ -74,6 +103,21 @@ export function awardWoodcutting(progress) {
     item: "logs",
     amount: 1,
     xp: WOODCUTTING_REWARD_XP,
+    leveledUp: afterLevel > beforeLevel,
+    level: afterLevel,
+  };
+}
+
+export function awardOakWoodcutting(progress) {
+  const beforeLevel = getLevelForXp(progress.skills.woodcuttingXp);
+  progress.inventory.oakLogs += 1;
+  progress.skills.woodcuttingXp += OAK_WOODCUTTING_REWARD_XP;
+  const afterLevel = getLevelForXp(progress.skills.woodcuttingXp);
+
+  return {
+    item: "oakLogs",
+    amount: 1,
+    xp: OAK_WOODCUTTING_REWARD_XP,
     leveledUp: afterLevel > beforeLevel,
     level: afterLevel,
   };
@@ -117,6 +161,18 @@ export function getAxeView(progress) {
     ...axe,
     owned: progress.equipment?.ownedAxes?.includes(axe.id) || axe.id === "bronze",
   };
+}
+
+export function getWeaponView(progress) {
+  const weapon = WEAPONS[progress.equipment?.weapon] || WEAPONS.trainingSword;
+  return {
+    ...weapon,
+    owned: progress.equipment?.ownedWeapons?.includes(weapon.id) || weapon.id === "trainingSword",
+  };
+}
+
+export function getWeaponDamage(progress) {
+  return getWeaponView(progress).damage;
 }
 
 export function getChopDuration(progress, baseDuration) {
@@ -171,6 +227,35 @@ export function smeltCopperBar(progress) {
   };
 }
 
+export function craftCopperSword(progress) {
+  if (progress.equipment.ownedWeapons.includes("copperSword")) {
+    return { ok: false, reason: "already_owned", weapon: WEAPONS.copperSword };
+  }
+  const missing = {
+    copperBars: Math.max(0, 2 - progress.inventory.copperBars),
+    oakLogs: Math.max(0, 1 - progress.inventory.oakLogs),
+  };
+  if (missing.copperBars > 0 || missing.oakLogs > 0) {
+    return { ok: false, reason: "missing_materials", missing };
+  }
+
+  const beforeLevel = getLevelForXp(progress.skills.smithingXp);
+  progress.inventory.copperBars -= 2;
+  progress.inventory.oakLogs -= 1;
+  progress.skills.smithingXp += COPPER_SWORD_SMITHING_XP;
+  progress.equipment.ownedWeapons.push("copperSword");
+  progress.equipment.weapon = "copperSword";
+  const afterLevel = getLevelForXp(progress.skills.smithingXp);
+
+  return {
+    ok: true,
+    weapon: WEAPONS.copperSword,
+    xp: COPPER_SWORD_SMITHING_XP,
+    leveledUp: afterLevel > beforeLevel,
+    level: afterLevel,
+  };
+}
+
 export function sellAllLogs(progress) {
   const logs = progress.inventory.logs;
   if (logs <= 0) {
@@ -184,6 +269,26 @@ export function sellAllLogs(progress) {
   progress.inventory.logs = 0;
   progress.inventory.coins += coinsEarned;
   recordQuestProgress(progress, "sale");
+
+  return {
+    ok: true,
+    logsSold: logs,
+    coinsEarned,
+  };
+}
+
+export function sellAllOakLogs(progress) {
+  const logs = progress.inventory.oakLogs;
+  if (logs <= 0) {
+    return {
+      ok: false,
+      reason: "no_oak_logs",
+    };
+  }
+
+  const coinsEarned = logs * OAK_LOG_SELL_PRICE;
+  progress.inventory.oakLogs = 0;
+  progress.inventory.coins += coinsEarned;
 
   return {
     ok: true,
@@ -234,17 +339,20 @@ export function sellAllCopperBars(progress) {
   };
 }
 
-export function awardSlimeDefeat(progress) {
+export function awardSlimeDefeat(progress, rewardType = "trainingSlime") {
+  const reward = SLIME_REWARDS[rewardType] || SLIME_REWARDS.trainingSlime;
   const beforeLevel = getLevelForXp(progress.skills.attackXp);
-  progress.skills.attackXp += ATTACK_REWARD_XP;
-  progress.inventory.coins += 3;
-  recordQuestProgress(progress, "slime");
+  progress.skills.attackXp += reward.xp;
+  progress.inventory.coins += reward.coins;
+  if (rewardType === "trainingSlime") {
+    recordQuestProgress(progress, "slime");
+  }
   const afterLevel = getLevelForXp(progress.skills.attackXp);
 
   return {
     ok: true,
-    xp: ATTACK_REWARD_XP,
-    coins: 3,
+    xp: reward.xp,
+    coins: reward.coins,
     leveledUp: afterLevel > beforeLevel,
     level: afterLevel,
   };
@@ -317,12 +425,14 @@ export function serializeProgression(progress) {
   return {
     inventory: {
       logs: progress.inventory.logs,
+      oakLogs: progress.inventory.oakLogs,
       copperOre: progress.inventory.copperOre,
       copperBars: progress.inventory.copperBars,
       coins: progress.inventory.coins,
     },
     bank: {
       logs: progress.bank.logs,
+      oakLogs: progress.bank.oakLogs,
       copperOre: progress.bank.copperOre,
       copperBars: progress.bank.copperBars,
     },
@@ -342,6 +452,8 @@ export function serializeProgression(progress) {
     equipment: {
       axe: progress.equipment.axe,
       ownedAxes: [...progress.equipment.ownedAxes],
+      weapon: progress.equipment.weapon,
+      ownedWeapons: [...progress.equipment.ownedWeapons],
     },
   };
 }
@@ -384,6 +496,11 @@ function getXpForLevel(level) {
 function normalizeOwnedAxes(savedAxes) {
   const saved = Array.isArray(savedAxes) ? savedAxes : [];
   return [...new Set(["bronze", ...saved.filter((axe) => AXES[axe])])];
+}
+
+function normalizeOwnedWeapons(savedWeapons) {
+  const saved = Array.isArray(savedWeapons) ? savedWeapons : [];
+  return [...new Set(["trainingSword", ...saved.filter((weapon) => WEAPONS[weapon])])];
 }
 
 function normalizeQuest(savedQuest = {}) {
