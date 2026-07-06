@@ -113,6 +113,15 @@ function drawResources(ctx, world, hoveredResource, activeChop) {
     const isHovered = hoveredResource?.id === resource.id;
     const isActive = activeChop?.resourceId === resource.id;
 
+    if (resource.type === "copperRock") {
+      if (resource.depleted) {
+        drawDepletedCopperRock(ctx, resource.x, resource.y, isHovered);
+      } else {
+        drawCopperRock(ctx, resource.x, resource.y, isHovered, isActive);
+      }
+      continue;
+    }
+
     if (resource.depleted) {
       drawStump(ctx, resource.x, resource.y, isHovered);
     } else {
@@ -120,7 +129,6 @@ function drawResources(ctx, world, hoveredResource, activeChop) {
     }
   }
 }
-
 function drawNpcs(ctx, world) {
   for (const npc of world.npcs) {
     drawShadow(ctx, npc.x, npc.y + 14, 18, 7);
@@ -183,6 +191,49 @@ function drawPlayer(ctx, player, now) {
   ctx.fill();
 }
 
+function drawCopperRock(ctx, x, y, isHovered, isActive) {
+  drawShadow(ctx, x, y + 15, 28, 10);
+  const pulse = isActive ? 3 + Math.sin(performance.now() / 90) * 1.5 : 0;
+
+  ctx.fillStyle = isHovered ? "#7f8587" : "#62696d";
+  roundedRect(ctx, x - 25 - pulse, y - 19 - pulse, 50 + pulse * 2, 34 + pulse * 2, 12);
+  ctx.fill();
+
+  ctx.fillStyle = "#444c50";
+  roundedRect(ctx, x - 17, y - 29, 31, 22, 8);
+  ctx.fill();
+
+  ctx.fillStyle = "#c87942";
+  roundedRect(ctx, x - 10, y - 17, 9, 6, 3);
+  ctx.fill();
+  roundedRect(ctx, x + 8, y - 6, 11, 6, 3);
+  ctx.fill();
+  roundedRect(ctx, x - 2, y - 28, 7, 5, 3);
+  ctx.fill();
+
+  if (isHovered || isActive) {
+    ctx.strokeStyle = isActive ? "#ffd87b" : "rgba(255, 244, 210, 0.75)";
+    ctx.lineWidth = 2;
+    circle(ctx, x, y - 7, 34 + pulse);
+    ctx.stroke();
+  }
+}
+
+function drawDepletedCopperRock(ctx, x, y, isHovered) {
+  drawShadow(ctx, x, y + 10, 24, 8);
+  ctx.fillStyle = isHovered ? "#5c6265" : "#474e51";
+  roundedRect(ctx, x - 22, y - 13, 44, 24, 9);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(18, 22, 20, 0.45)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - 8, y - 12);
+  ctx.lineTo(x + 1, y - 3);
+  ctx.lineTo(x - 6, y + 8);
+  ctx.moveTo(x + 10, y - 9);
+  ctx.lineTo(x + 4, y + 4);
+  ctx.stroke();
+}
 function drawTree(ctx, x, y, isHovered, isActive) {
   drawShadow(ctx, x, y + 16, 27, 11);
 
@@ -312,5 +363,6 @@ function roundedRect(ctx, x, y, width, height, radius) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+
 
 

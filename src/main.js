@@ -1,12 +1,16 @@
 import {
+  COPPER_ORE_SELL_PRICE,
   IRON_AXE_COST,
   LOG_SELL_PRICE,
+  awardMining,
   awardWoodcutting,
   buyIronAxe,
   createProgression,
   getAxeView,
   getChopDuration,
+  getMiningView,
   getWoodcuttingView,
+  sellAllCopperOre,
   sellAllLogs,
   serializeProgression,
 } from "./progression.js";
@@ -15,6 +19,7 @@ import { getCamera, renderGame, resizeCanvas, screenToWorld } from "./render.js"
 import {
   CHOP_DURATION_MS,
   INTERACTION_RADIUS,
+  MINE_DURATION_MS,
   createWorld,
   depleteResource,
   findNpcAt,
@@ -24,22 +29,27 @@ import {
 } from "./world.js";
 import { loadSave, resetSave, saveGame } from "./storage.js";
 
-const MERCHANT_INTERACTION_RADIUS = 96;
+const NPC_INTERACTION_RADIUS = 96;
 
 const canvas = document.querySelector("#gameCanvas");
 const ctx = canvas.getContext("2d");
 const elements = {
   saveStatus: document.querySelector("#saveStatus"),
   logCount: document.querySelector("#logCount"),
+  copperOreCount: document.querySelector("#copperOreCount"),
   coinCount: document.querySelector("#coinCount"),
   woodcuttingLevel: document.querySelector("#woodcuttingLevel"),
   woodcuttingProgress: document.querySelector("#woodcuttingProgress"),
   woodcuttingXp: document.querySelector("#woodcuttingXp"),
+  miningLevel: document.querySelector("#miningLevel"),
+  miningProgress: document.querySelector("#miningProgress"),
+  miningXp: document.querySelector("#miningXp"),
   axeName: document.querySelector("#axeName"),
   axeSpeed: document.querySelector("#axeSpeed"),
   marketStatus: document.querySelector("#marketStatus"),
   sellLogs: document.querySelector("#sellLogs"),
   buyIronAxe: document.querySelector("#buyIronAxe"),
+  sellCopperOre: document.querySelector("#sellCopperOre"),
   worldPrompt: document.querySelector("#worldPrompt"),
   chatLog: document.querySelector("#chatLog"),
   resetSave: document.querySelector("#resetSave"),
@@ -69,7 +79,7 @@ let lastAutoSave = 0;
 let saveFlashUntil = 0;
 
 pushChat(save.message);
-pushChat("Gather logs, then visit the Timber Buyer to turn wood into coins.");
+pushChat("Gather logs or mine copper, then sell materials to the right island trader.");
 updateUi();
 requestAnimationFrame(tick);
 
@@ -117,17 +127,20 @@ canvas.addEventListener("pointerdown", (event) => {
     if (npc.id === "merchant") {
       pushChat(`Logs sell for ${LOG_SELL_PRICE} coins each. Iron axe costs ${IRON_AXE_COST} coins.`);
     }
+    if (npc.id === "prospector") {
+      pushChat(`Copper ore sells for ${COPPER_ORE_SELL_PRICE} coins each.`);
+    }
     return;
   }
 
   game.pendingResourceId = null;
-  stopChopping();
+  stopGathering();
   setPlayerTarget(player, point.x, point.y, world);
   updatePrompt();
 });
 
 elements.sellLogs.addEventListener("click", () => {
-  if (!isNearMerchant()) {
+  if (!isNearNpc("merchant")) {
     pushChat("You need to stand near the Timber Buyer to sell logs.");
     return;
   }
@@ -145,7 +158,7 @@ elements.sellLogs.addEventListener("click", () => {
 });
 
 elements.buyIronAxe.addEventListener("click", () => {
-  if (!isNearMerchant()) {
+  if (!isNearNpc("merchant")) {
     pushChat("You need to stand near the Timber Buyer to buy tools.");
     return;
   }
@@ -166,6 +179,24 @@ elements.buyIronAxe.addEventListener("click", () => {
   updateUi();
 });
 
+elements.sellCopperOre.addEventListener("click", () => {
+  if (!isNearNpc("prospector")) {
+    pushChat("You need to stand near the Prospector to sell copper ore.");
+    return;
+  }
+
+  const result = sellAllCopperOre(progress);
+  if (!result.ok) {
+    pushChat("You do not have any copper ore to sell.");
+    updateUi();
+    return;
+  }
+
+  pushChat(`Sold ${result.oreSold} copper ore for ${result.coinsEarned} coins.`);
+  persist("Ore trade saved");
+  updateUi();
+});
+
 elements.resetSave.addEventListener("click", () => {
   resetSave();
   window.location.reload();
@@ -178,7 +209,7 @@ function tick(now) {
   updateResources(world, now);
   updatePlayer(player, input, world, dt);
   updatePendingResource(now);
-  updateChopping(now);
+  updateGathering(now);
   updateUi(now);
 
   view = resizeCanvas(canvas);
@@ -194,20 +225,20 @@ function tick(now) {
 
 function chooseResource(resource) {
   if (resource.depleted) {
-    pushChat("That tree is only a stump right now. It will regrow soon.");
+    pushChat(`${resource.label} is depleted. It will recover soon.`);
     return;
   }
 
   const distance = Math.hypot(resource.x - player.x, resource.y - player.y);
   if (distance <= INTERACTION_RADIUS) {
-    startChopping(resource);
+    startGathering(resource);
     return;
   }
 
   game.pendingResourceId = resource.id;
-  stopChopping();
+  stopGathering();
   setPlayerTarget(player, resource.x, resource.y + 34, world);
-  pushChat("Walking to the tree.");
+  pushChat(`Walking to the ${resource.label.toLowerCase()}.`);
 }
 
 function updatePendingResource(now) {
@@ -224,11 +255,11 @@ function updatePendingResource(now) {
   const distance = Math.hypot(resource.x - player.x, resource.y - player.y);
   if (distance <= INTERACTION_RADIUS) {
     game.pendingResourceId = null;
-    startChopping(resource, now);
+    startGathering(resource, now);
   }
 }
 
-function startChopping(resource, now = performance.now()) {
+function startGathering(resource, now = performance.now()) {
   if (resource.depleted) {
     return;
   }
@@ -236,46 +267,67 @@ function startChopping(resource, now = performance.now()) {
   game.activeChop = {
     resourceId: resource.id,
     startedAt: now,
-    endsAt: now + getChopDuration(progress, CHOP_DURATION_MS),
+    endsAt: now + getGatherDuration(resource),
   };
   player.target = null;
-  pushChat(`You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`);
+  pushChat(getStartGatherMessage(resource));
   updatePrompt();
 }
 
-function updateChopping(now) {
+function updateGathering(now) {
   if (!game.activeChop) {
     return;
   }
 
   const resource = world.resources.find((item) => item.id === game.activeChop.resourceId);
   if (!resource || resource.depleted) {
-    stopChopping();
+    stopGathering();
     return;
   }
 
   const distance = Math.hypot(resource.x - player.x, resource.y - player.y);
   if (distance > INTERACTION_RADIUS + 18) {
-    pushChat("You step too far away and stop chopping.");
-    stopChopping();
+    pushChat("You step too far away and stop gathering.");
+    stopGathering();
     return;
   }
 
   if (now >= game.activeChop.endsAt) {
     depleteResource(resource, now);
-    const reward = awardWoodcutting(progress);
-    pushChat(`You get some logs. +${reward.xp} Woodcutting XP.`);
+    const reward = resource.type === "copperRock" ? awardMining(progress) : awardWoodcutting(progress);
+    pushChat(getRewardMessage(resource, reward));
     if (reward.leveledUp) {
-      pushChat(`Woodcutting level ${reward.level}. Nice.`);
+      const skill = resource.type === "copperRock" ? "Mining" : "Woodcutting";
+      pushChat(`${skill} level ${reward.level}. Nice.`);
     }
-    stopChopping();
+    stopGathering();
     persist("Progress saved");
   }
 }
 
-function stopChopping() {
+function stopGathering() {
   game.activeChop = null;
   updatePrompt();
+}
+
+function getGatherDuration(resource) {
+  return resource.type === "copperRock" ? MINE_DURATION_MS : getChopDuration(progress, CHOP_DURATION_MS);
+}
+
+function getStartGatherMessage(resource) {
+  if (resource.type === "copperRock") {
+    return "You swing your pickaxe at the copper rock.";
+  }
+
+  return `You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`;
+}
+
+function getRewardMessage(resource, reward) {
+  if (resource.type === "copperRock") {
+    return `You mine copper ore. +${reward.xp} Mining XP.`;
+  }
+
+  return `You get some logs. +${reward.xp} Woodcutting XP.`;
 }
 
 function getWorldPoint(event) {
@@ -285,12 +337,18 @@ function getWorldPoint(event) {
 
 function updateUi(now = performance.now()) {
   elements.logCount.textContent = progress.inventory.logs;
+  elements.copperOreCount.textContent = progress.inventory.copperOre;
   elements.coinCount.textContent = progress.inventory.coins;
 
   const woodcutting = getWoodcuttingView(progress);
   elements.woodcuttingLevel.textContent = woodcutting.level;
   elements.woodcuttingProgress.style.width = `${Math.round(woodcutting.progressToNext * 100)}%`;
   elements.woodcuttingXp.textContent = `${woodcutting.xp} / ${woodcutting.nextLevelXp} XP`;
+
+  const mining = getMiningView(progress);
+  elements.miningLevel.textContent = mining.level;
+  elements.miningProgress.style.width = `${Math.round(mining.progressToNext * 100)}%`;
+  elements.miningXp.textContent = `${mining.xp} / ${mining.nextLevelXp} XP`;
 
   const axe = getAxeView(progress);
   elements.axeName.textContent = axe.name;
@@ -308,35 +366,41 @@ function updateUi(now = performance.now()) {
 }
 
 function updateMarketUi() {
-  const nearMerchant = isNearMerchant();
+  const nearMerchant = isNearNpc("merchant");
+  const nearProspector = isNearNpc("prospector");
   const ownsIron = progress.equipment.ownedAxes.includes("iron");
+
   elements.sellLogs.disabled = !nearMerchant || progress.inventory.logs <= 0;
   elements.buyIronAxe.disabled = !nearMerchant || ownsIron || progress.inventory.coins < IRON_AXE_COST;
+  elements.sellCopperOre.disabled = !nearProspector || progress.inventory.copperOre <= 0;
 
-  if (!nearMerchant) {
-    elements.marketStatus.textContent = "Visit the Timber Buyer near the market.";
+  if (nearProspector) {
+    elements.marketStatus.textContent = `Prospector nearby. Copper ore sells for ${COPPER_ORE_SELL_PRICE} coins each.`;
     return;
   }
 
-  if (ownsIron) {
-    elements.marketStatus.textContent = `Iron axe owned. Logs sell for ${LOG_SELL_PRICE} coins each.`;
+  if (nearMerchant) {
+    elements.marketStatus.textContent = ownsIron
+      ? `Iron axe owned. Logs sell for ${LOG_SELL_PRICE} coins each.`
+      : `Logs sell for ${LOG_SELL_PRICE} coins. Iron axe costs ${IRON_AXE_COST} coins.`;
     return;
   }
 
-  elements.marketStatus.textContent = `Logs sell for ${LOG_SELL_PRICE} coins. Iron axe costs ${IRON_AXE_COST} coins.`;
+  elements.marketStatus.textContent = "Visit the Timber Buyer or Prospector to trade.";
 }
 
 function updatePrompt() {
   if (game.activeChop) {
-    elements.worldPrompt.textContent = "Chopping tree...";
+    const resource = world.resources.find((item) => item.id === game.activeChop.resourceId);
+    elements.worldPrompt.textContent = resource?.type === "copperRock" ? "Mining copper..." : "Chopping tree...";
     return;
   }
 
   if (game.hover?.resource) {
     const resource = game.hover.resource;
     elements.worldPrompt.textContent = resource.depleted
-      ? "A stump. This tree will respawn shortly."
-      : "Tree: click to walk over and chop.";
+      ? `${resource.label} is depleted and will respawn shortly.`
+      : `${resource.label}: click to walk over and gather.`;
     return;
   }
 
@@ -345,17 +409,22 @@ function updatePrompt() {
     return;
   }
 
-  if (isNearMerchant()) {
+  if (isNearNpc("prospector")) {
+    elements.worldPrompt.textContent = "Prospector nearby. Use the market panel to sell copper ore.";
+    return;
+  }
+
+  if (isNearNpc("merchant")) {
     elements.worldPrompt.textContent = "Timber Buyer nearby. Use the market panel to trade.";
     return;
   }
 
-  elements.worldPrompt.textContent = "Gather logs, then sell them to the Timber Buyer.";
+  elements.worldPrompt.textContent = "Gather logs or mine copper, then sell materials to traders.";
 }
 
-function isNearMerchant() {
-  const merchant = world.npcs.find((npc) => npc.id === "merchant");
-  return Boolean(merchant && Math.hypot(merchant.x - player.x, merchant.y - player.y) <= MERCHANT_INTERACTION_RADIUS);
+function isNearNpc(id) {
+  const npc = world.npcs.find((item) => item.id === id);
+  return Boolean(npc && Math.hypot(npc.x - player.x, npc.y - player.y) <= NPC_INTERACTION_RADIUS);
 }
 
 function pushChat(message) {

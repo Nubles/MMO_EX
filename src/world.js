@@ -2,7 +2,9 @@ export const TILE_SIZE = 48;
 export const WORLD_WIDTH = 42;
 export const WORLD_HEIGHT = 30;
 export const TREE_RESPAWN_MS = 18000;
+export const COPPER_ROCK_RESPAWN_MS = 14000;
 export const CHOP_DURATION_MS = 1700;
+export const MINE_DURATION_MS = 1900;
 export const INTERACTION_RADIUS = 72;
 
 const TREE_LAYOUT = [
@@ -28,13 +30,23 @@ const TREE_LAYOUT = [
   [35, 22],
 ];
 
+const COPPER_ROCK_LAYOUT = [
+  [4, 18],
+  [5, 20],
+  [7, 19],
+  [8, 21],
+  [10, 20],
+  [6, 23],
+  [11, 23],
+];
+
 const NPCS = [
   {
     id: "guide",
     name: "Island Guide",
     x: 20.5 * TILE_SIZE,
     y: 15.5 * TILE_SIZE,
-    line: "Chop trees, gather logs, and make this island useful.",
+    line: "Chop trees, mine copper, and make this island useful.",
   },
   {
     id: "merchant",
@@ -43,26 +55,21 @@ const NPCS = [
     y: 17.5 * TILE_SIZE,
     line: "I buy logs and sell better axes. Stand nearby and use the market panel.",
   },
+  {
+    id: "prospector",
+    name: "Prospector",
+    x: 7.5 * TILE_SIZE,
+    y: 18.5 * TILE_SIZE,
+    line: "Copper ore has a good shine. Mine it, bring it here, and I will pay.",
+  },
 ];
 
 export function createWorld(savedResources = []) {
-  const savedById = new Map(savedResources.map((resource) => [resource.id, resource]));
-  const resources = TREE_LAYOUT.map(([tileX, tileY], index) => {
-    const id = `tree-${index + 1}`;
-    const saved = savedById.get(id);
-    return {
-      id,
-      type: "tree",
-      label: "Tree",
-      tileX,
-      tileY,
-      x: (tileX + 0.5) * TILE_SIZE,
-      y: (tileY + 0.5) * TILE_SIZE,
-      radius: 23,
-      depleted: Boolean(saved?.depleted),
-      depletedUntil: Number(saved?.depletedUntil) || 0,
-    };
-  });
+  const savedById = new Map((savedResources || []).map((resource) => [resource.id, resource]));
+  const resources = [
+    ...TREE_LAYOUT.map(([tileX, tileY], index) => createResource("tree", tileX, tileY, index, savedById)),
+    ...COPPER_ROCK_LAYOUT.map(([tileX, tileY], index) => createResource("copperRock", tileX, tileY, index, savedById)),
+  ];
 
   return {
     width: WORLD_WIDTH,
@@ -76,6 +83,7 @@ export function createWorld(savedResources = []) {
 export function serializeResources(resources) {
   return resources.map((resource) => ({
     id: resource.id,
+    type: resource.type,
     depleted: resource.depleted,
     depletedUntil: resource.depletedUntil,
   }));
@@ -98,7 +106,7 @@ export function tileAt(tileX, tileY) {
     return "market";
   }
 
-  if (tileY === 16 || tileX === 20 || (tileY === 9 && tileX >= 5 && tileX <= 35)) {
+  if ((tileX >= 3 && tileX <= 12 && tileY >= 18 && tileY <= 23) || tileY === 16 || tileX === 20 || (tileY === 9 && tileX >= 5 && tileX <= 35)) {
     return "path";
   }
 
@@ -154,7 +162,7 @@ export function updateResources(world, now) {
 
 export function depleteResource(resource, now) {
   resource.depleted = true;
-  resource.depletedUntil = now + TREE_RESPAWN_MS;
+  resource.depletedUntil = now + getResourceRespawnMs(resource);
 }
 
 export function findResourceAt(world, x, y) {
@@ -194,3 +202,24 @@ export function getWorldBounds(world) {
   };
 }
 
+function createResource(type, tileX, tileY, index, savedById) {
+  const id = type === "tree" ? `tree-${index + 1}` : `copper-rock-${index + 1}`;
+  const saved = savedById.get(id);
+  const label = type === "tree" ? "Tree" : "Copper rock";
+  return {
+    id,
+    type,
+    label,
+    tileX,
+    tileY,
+    x: (tileX + 0.5) * TILE_SIZE,
+    y: (tileY + 0.5) * TILE_SIZE,
+    radius: type === "tree" ? 23 : 25,
+    depleted: Boolean(saved?.depleted),
+    depletedUntil: Number(saved?.depletedUntil) || 0,
+  };
+}
+
+function getResourceRespawnMs(resource) {
+  return resource.type === "copperRock" ? COPPER_ROCK_RESPAWN_MS : TREE_RESPAWN_MS;
+}
