@@ -27,6 +27,7 @@
         <section class="panel-section">
           <h2>Inventory</h2>
           <div class="stat-row"><span>Logs</span><strong id="logCount">0</strong></div>
+          <div class="stat-row"><span>Oak Logs</span><strong id="oakLogCount">0</strong></div>
           <div class="stat-row"><span>Copper Ore</span><strong id="copperOreCount">0</strong></div>
           <div class="stat-row"><span>Copper Bars</span><strong id="copperBarCount">0</strong></div>
           <div class="stat-row"><span>Coins</span><strong id="coinCount">0</strong></div>
@@ -58,19 +59,25 @@
           <h2>Equipment</h2>
           <div class="stat-row"><span>Axe</span><strong id="axeName">Bronze</strong></div>
           <p id="axeSpeed">Standard chop speed</p>
+          <div class="stat-row"><span>Weapon</span><strong id="weaponName">Training Sword</strong></div>
+          <p id="weaponDamage">4 damage</p>
         </section>
 
         <section class="panel-section market-panel">
           <h2>Actions</h2>
           <p id="marketStatus">Visit a trader, bank, or workshop.</p>
           <button id="sellLogs" class="action-button" type="button">Sell Logs</button>
+          <button id="sellOakLogs" class="action-button" type="button">Sell Oak Logs</button>
           <button id="buyIronAxe" class="action-button" type="button">Buy Iron Axe</button>
           <button id="sellCopperOre" class="action-button" type="button">Sell Copper Ore</button>
           <button id="sellCopperBars" class="action-button" type="button">Sell Copper Bars</button>
           <button id="smeltCopperBar" class="action-button" type="button">Smelt Copper Bar</button>
+          <button id="craftCopperSword" class="action-button" type="button">Craft Copper Sword</button>
           <div class="button-grid">
             <button id="depositLogs" class="action-button" type="button">Deposit Logs</button>
             <button id="withdrawLogs" class="action-button" type="button">Withdraw Logs</button>
+            <button id="depositOakLogs" class="action-button" type="button">Deposit Oak</button>
+            <button id="withdrawOakLogs" class="action-button" type="button">Withdraw Oak</button>
             <button id="depositCopperOre" class="action-button" type="button">Deposit Ore</button>
             <button id="withdrawCopperOre" class="action-button" type="button">Withdraw Ore</button>
             <button id="depositCopperBars" class="action-button" type="button">Deposit Bars</button>
@@ -81,6 +88,7 @@
         <section class="panel-section">
           <h2>Bank</h2>
           <div class="stat-row"><span>Logs</span><strong id="bankLogs">0</strong></div>
+          <div class="stat-row"><span>Oak Logs</span><strong id="bankOakLogs">0</strong></div>
           <div class="stat-row"><span>Copper Ore</span><strong id="bankCopperOre">0</strong></div>
           <div class="stat-row"><span>Copper Bars</span><strong id="bankCopperBars">0</strong></div>
         </section>

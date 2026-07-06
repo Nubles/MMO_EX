@@ -3,6 +3,7 @@ import { TILE_SIZE, tileAt } from "./world.js";
 const TILE_COLORS = {
   grass: ["#496b35", "#3f5e2f"],
   flowers: ["#526f38", "#456331"],
+  ridge: ["#5f7142", "#536638"],
   path: ["#8b7144", "#756039"],
   water: ["#254f65", "#1f4054"],
   cabin: ["#654326", "#53351e"],
@@ -155,7 +156,7 @@ function drawSlimes(ctx, world, hoveredSlime, activeChop) {
     }
     const pulse = active ? 3 + Math.sin(performance.now() / 80) * 1.5 : 0;
     drawShadow(ctx, slime.x, slime.y + 16, 21, 8);
-    ctx.fillStyle = hovered ? "#8ccf7e" : "#5fa64f";
+    ctx.fillStyle = slime.type === "ridgeSlime" ? (hovered ? "#b28ad9" : "#835aa8") : (hovered ? "#8ccf7e" : "#5fa64f");
     circle(ctx, slime.x, slime.y, 20 + pulse);
     ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.5)";
@@ -180,6 +181,15 @@ function drawResources(ctx, world, hoveredResource, activeChop) {
   for (const resource of world.resources) {
     const isHovered = hoveredResource?.id === resource.id;
     const isActive = activeChop?.resourceId === resource.id;
+
+    if (resource.type === "oakTree") {
+      if (resource.depleted) {
+        drawStump(ctx, resource.x, resource.y, isHovered);
+      } else {
+        drawOakTree(ctx, resource.x, resource.y, isHovered, isActive);
+      }
+      continue;
+    }
 
     if (resource.type === "copperRock") {
       if (resource.depleted) {
@@ -325,6 +335,33 @@ function drawTree(ctx, x, y, isHovered, isActive) {
     ctx.strokeStyle = isActive ? "#ffd87b" : "rgba(255, 244, 210, 0.75)";
     ctx.lineWidth = 2;
     circle(ctx, x, y - 28, 36 + pulse);
+    ctx.stroke();
+  }
+}
+
+function drawOakTree(ctx, x, y, isHovered, isActive) {
+  drawShadow(ctx, x, y + 17, 30, 12);
+
+  ctx.fillStyle = "#76512d";
+  roundedRect(ctx, x - 9, y - 7, 18, 35, 5);
+  ctx.fill();
+
+  const pulse = isActive ? 4 + Math.sin(performance.now() / 90) * 2 : 0;
+  ctx.fillStyle = isHovered ? "#7f9851" : "#667d3f";
+  fillCircle(ctx, x - 17, y - 28, 26 + pulse);
+  fillCircle(ctx, x + 15, y - 31, 27 + pulse);
+  fillCircle(ctx, x, y - 51, 26 + pulse);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(226, 197, 113, 0.38)";
+  fillCircle(ctx, x - 10, y - 54, 7);
+  fillCircle(ctx, x + 16, y - 37, 6);
+  ctx.fill();
+
+  if (isHovered || isActive) {
+    ctx.strokeStyle = isActive ? "#ffd87b" : "rgba(255, 244, 210, 0.75)";
+    ctx.lineWidth = 2;
+    circle(ctx, x, y - 31, 39 + pulse);
     ctx.stroke();
   }
 }

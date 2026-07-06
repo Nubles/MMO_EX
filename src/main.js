@@ -3,12 +3,15 @@ import {
   COPPER_ORE_SELL_PRICE,
   IRON_AXE_COST,
   LOG_SELL_PRICE,
+  OAK_LOG_SELL_PRICE,
   awardMining,
+  awardOakWoodcutting,
   awardSlimeDefeat,
   awardWoodcutting,
   buyIronAxe,
   completeQuestIfReady,
   createProgression,
+  craftCopperSword,
   damagePlayer,
   depositAll,
   getAttackView,
@@ -16,10 +19,13 @@ import {
   getChopDuration,
   getMiningView,
   getSmithingView,
+  getWeaponDamage,
+  getWeaponView,
   getWoodcuttingView,
   sellAllCopperBars,
   sellAllCopperOre,
   sellAllLogs,
+  sellAllOakLogs,
   serializeProgression,
   smeltCopperBar,
   withdrawAll,
@@ -47,16 +53,15 @@ import { loadSave, resetSave, saveGame } from "./storage.js";
 
 const NPC_INTERACTION_RADIUS = 96;
 const OBJECT_INTERACTION_RADIUS = 92;
-const SLIME_DAMAGE = 4;
 
 const canvas = document.querySelector("#gameCanvas");
 const ctx = canvas.getContext("2d");
 const elements = Object.fromEntries([
-  "saveStatus", "logCount", "copperOreCount", "copperBarCount", "coinCount", "woodcuttingLevel", "woodcuttingProgress", "woodcuttingXp",
+  "saveStatus", "logCount", "oakLogCount", "copperOreCount", "copperBarCount", "coinCount", "woodcuttingLevel", "woodcuttingProgress", "woodcuttingXp",
   "miningLevel", "miningProgress", "miningXp", "smithingLevel", "smithingProgress", "smithingXp", "attackLevel", "attackProgress", "attackXp",
-  "hpValue", "hpFill", "axeName", "axeSpeed", "marketStatus", "sellLogs", "buyIronAxe", "sellCopperOre", "sellCopperBars", "smeltCopperBar",
-  "depositLogs", "withdrawLogs", "depositCopperOre", "withdrawCopperOre", "depositCopperBars", "withdrawCopperBars",
-  "bankLogs", "bankCopperOre", "bankCopperBars", "questLogs", "questOre", "questBar", "questSale", "questSlime", "questStatus", "worldPrompt", "chatLog", "resetSave",
+  "hpValue", "hpFill", "axeName", "axeSpeed", "weaponName", "weaponDamage", "marketStatus", "sellLogs", "sellOakLogs", "buyIronAxe", "sellCopperOre", "sellCopperBars", "smeltCopperBar", "craftCopperSword",
+  "depositLogs", "withdrawLogs", "depositOakLogs", "withdrawOakLogs", "depositCopperOre", "withdrawCopperOre", "depositCopperBars", "withdrawCopperBars",
+  "bankLogs", "bankOakLogs", "bankCopperOre", "bankCopperBars", "questLogs", "questOre", "questBar", "questSale", "questSlime", "questStatus", "worldPrompt", "chatLog", "resetSave",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 const save = loadSave();
@@ -119,12 +124,16 @@ canvas.addEventListener("pointerdown", (event) => {
 });
 
 wireButton("sellLogs", () => tradeNear("merchant", () => sellAllLogs(progress), (r) => `Sold ${r.logsSold} logs for ${r.coinsEarned} coins.`, "You do not have any logs to sell."));
+wireButton("sellOakLogs", () => tradeNear("merchant", () => sellAllOakLogs(progress), (r) => `Sold ${r.logsSold} oak logs for ${r.coinsEarned} coins.`, "You do not have any oak logs to sell."));
 wireButton("sellCopperOre", () => tradeNear("prospector", () => sellAllCopperOre(progress), (r) => `Sold ${r.oreSold} copper ore for ${r.coinsEarned} coins.`, "You do not have any copper ore to sell."));
 wireButton("sellCopperBars", () => tradeNear("prospector", () => sellAllCopperBars(progress), (r) => `Sold ${r.barsSold} copper bars for ${r.coinsEarned} coins.`, "You do not have any copper bars to sell."));
 wireButton("buyIronAxe", buyAxe);
 wireButton("smeltCopperBar", smeltAtWorkshop);
+wireButton("craftCopperSword", craftSwordAtWorkshop);
 wireButton("depositLogs", () => bankAction("bank", () => depositAll(progress, "logs"), "Deposited logs."));
 wireButton("withdrawLogs", () => bankAction("bank", () => withdrawAll(progress, "logs"), "Withdrew logs."));
+wireButton("depositOakLogs", () => bankAction("bank", () => depositAll(progress, "oakLogs"), "Deposited oak logs."));
+wireButton("withdrawOakLogs", () => bankAction("bank", () => withdrawAll(progress, "oakLogs"), "Withdrew oak logs."));
 wireButton("depositCopperOre", () => bankAction("bank", () => depositAll(progress, "copperOre"), "Deposited copper ore."));
 wireButton("withdrawCopperOre", () => bankAction("bank", () => withdrawAll(progress, "copperOre"), "Withdrew copper ore."));
 wireButton("depositCopperBars", () => bankAction("bank", () => depositAll(progress, "copperBars"), "Deposited copper bars."));
@@ -162,7 +171,7 @@ function chooseSlime(slime) {
   game.pendingResourceId = null;
   stopAction();
   setPlayerTarget(player, slime.x, slime.y + 28, world);
-  pushChat("Walking to the training slime.");
+  pushChat(`Walking to the ${slime.label.toLowerCase()}.`);
 }
 
 function updatePending(now) {
@@ -181,13 +190,13 @@ function updatePending(now) {
 function startGathering(resource, now = performance.now()) {
   game.activeChop = { resourceId: resource.id, startedAt: now, endsAt: now + getGatherDuration(resource) };
   player.target = null;
-  pushChat(resource.type === "copperRock" ? "You swing your pickaxe at the copper rock." : `You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`);
+  pushChat(resource.type === "copperRock" ? "You swing your pickaxe at the copper rock." : resource.type === "oakTree" ? `You swing your ${getAxeView(progress).name.toLowerCase()} at the oak tree.` : `You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`);
 }
 
 function startAttack(slime, now = performance.now()) {
   game.activeChop = { slimeId: slime.id, startedAt: now, endsAt: now + ATTACK_DURATION_MS };
   player.target = null;
-  pushChat("You attack the training slime.");
+  pushChat(`You attack the ${slime.label.toLowerCase()}.`);
 }
 
 function updateAction(now) {
@@ -214,9 +223,9 @@ function updateAttack(now) {
   if (!slime || slime.defeated) return stopAction();
   if (Math.hypot(slime.x - player.x, slime.y - player.y) > INTERACTION_RADIUS + 18) { pushChat("You step too far away from the slime."); return stopAction(); }
   if (now < game.activeChop.endsAt) return;
-  const hit = damageSlime(slime, SLIME_DAMAGE, now);
+  const hit = damageSlime(slime, getWeaponDamage(progress), now);
   if (hit.defeated) {
-    const reward = awardSlimeDefeat(progress);
+    const reward = awardSlimeDefeat(progress, slime.rewardType);
     pushChat(`Slime defeated. +${reward.xp} Attack XP and ${reward.coins} coins.`);
     maybeCompleteQuest();
     persist("Combat saved");
@@ -261,6 +270,19 @@ function smeltAtWorkshop() {
   updateUi();
 }
 
+function craftSwordAtWorkshop() {
+  if (!isNearObject("workshop")) { pushChat("Stand near the furnace to craft a copper sword."); return; }
+  const result = craftCopperSword(progress);
+  if (!result.ok) {
+    pushChat(result.reason === "already_owned" ? "You already own the copper sword." : "You need 2 copper bars and 1 oak log for a copper sword.");
+    updateUi();
+    return;
+  }
+  pushChat(`Crafted and equipped a ${result.weapon.name}. +${result.xp} Smithing XP.`);
+  persist("Weapon saved");
+  updateUi();
+}
+
 function bankAction(objectId, action, successText) {
   if (!isNearObject(objectId)) { pushChat("Stand near the bank chest first."); return; }
   const result = action();
@@ -271,7 +293,7 @@ function bankAction(objectId, action, successText) {
 
 function talkToNpc(npc) {
   pushChat(`${npc.name}: ${npc.line}`);
-  if (npc.id === "merchant") pushChat(`Logs sell for ${LOG_SELL_PRICE} coins each. Iron axe costs ${IRON_AXE_COST} coins.`);
+  if (npc.id === "merchant") pushChat(`Logs sell for ${LOG_SELL_PRICE}; oak logs sell for ${OAK_LOG_SELL_PRICE}. Iron axe costs ${IRON_AXE_COST} coins.`);
   if (npc.id === "prospector") pushChat(`Copper ore sells for ${COPPER_ORE_SELL_PRICE}; bars sell for ${COPPER_BAR_SELL_PRICE}.`);
 }
 
@@ -282,6 +304,7 @@ function maybeCompleteQuest() {
 
 function updateUi(now = performance.now()) {
   elements.logCount.textContent = progress.inventory.logs;
+  elements.oakLogCount.textContent = progress.inventory.oakLogs;
   elements.copperOreCount.textContent = progress.inventory.copperOre;
   elements.copperBarCount.textContent = progress.inventory.copperBars;
   elements.coinCount.textContent = progress.inventory.coins;
@@ -294,7 +317,11 @@ function updateUi(now = performance.now()) {
   const axe = getAxeView(progress);
   elements.axeName.textContent = axe.name;
   elements.axeSpeed.textContent = axe.speedLabel;
+  const weapon = getWeaponView(progress);
+  elements.weaponName.textContent = weapon.name;
+  elements.weaponDamage.textContent = weapon.damageLabel;
   elements.bankLogs.textContent = progress.bank.logs;
+  elements.bankOakLogs.textContent = progress.bank.oakLogs;
   elements.bankCopperOre.textContent = progress.bank.copperOre;
   elements.bankCopperBars.textContent = progress.bank.copperBars;
   updateQuestUi();
@@ -321,29 +348,32 @@ function updateActionUi() {
   const nearBank = isNearObject("bank");
   const nearWorkshop = isNearObject("workshop");
   const ownsIron = progress.equipment.ownedAxes.includes("iron");
+  const ownsCopperSword = progress.equipment.ownedWeapons.includes("copperSword");
   elements.sellLogs.disabled = !nearMerchant || progress.inventory.logs <= 0;
+  elements.sellOakLogs.disabled = !nearMerchant || progress.inventory.oakLogs <= 0;
   elements.buyIronAxe.disabled = !nearMerchant || ownsIron || progress.inventory.coins < IRON_AXE_COST;
   elements.sellCopperOre.disabled = !nearProspector || progress.inventory.copperOre <= 0;
   elements.sellCopperBars.disabled = !nearProspector || progress.inventory.copperBars <= 0;
   elements.smeltCopperBar.disabled = !nearWorkshop || progress.inventory.copperOre < 2;
-  for (const [id, item, source] of [["depositLogs","logs","inventory"],["withdrawLogs","logs","bank"],["depositCopperOre","copperOre","inventory"],["withdrawCopperOre","copperOre","bank"],["depositCopperBars","copperBars","inventory"],["withdrawCopperBars","copperBars","bank"]]) {
+  elements.craftCopperSword.disabled = !nearWorkshop || ownsCopperSword || progress.inventory.copperBars < 2 || progress.inventory.oakLogs < 1;
+  for (const [id, item, source] of [["depositLogs","logs","inventory"],["withdrawLogs","logs","bank"],["depositOakLogs","oakLogs","inventory"],["withdrawOakLogs","oakLogs","bank"],["depositCopperOre","copperOre","inventory"],["withdrawCopperOre","copperOre","bank"],["depositCopperBars","copperBars","inventory"],["withdrawCopperBars","copperBars","bank"]]) {
     elements[id].disabled = !nearBank || progress[source][item] <= 0;
   }
   if (nearBank) elements.marketStatus.textContent = "Bank chest nearby. Deposit or withdraw materials.";
-  else if (nearWorkshop) elements.marketStatus.textContent = "Furnace nearby. Smelt 2 copper ore into 1 bar.";
+  else if (nearWorkshop) elements.marketStatus.textContent = ownsCopperSword ? "Furnace nearby. Copper sword owned." : "Furnace nearby. Smelt bars or craft a copper sword from 2 bars and 1 oak log.";
   else if (nearProspector) elements.marketStatus.textContent = `Prospector nearby. Ore ${COPPER_ORE_SELL_PRICE} coins, bars ${COPPER_BAR_SELL_PRICE} coins.`;
-  else if (nearMerchant) elements.marketStatus.textContent = ownsIron ? `Iron axe owned. Logs sell for ${LOG_SELL_PRICE} coins each.` : `Logs sell for ${LOG_SELL_PRICE} coins. Iron axe costs ${IRON_AXE_COST} coins.`;
+  else if (nearMerchant) elements.marketStatus.textContent = ownsIron ? `Iron axe owned. Logs sell for ${LOG_SELL_PRICE}; oak logs ${OAK_LOG_SELL_PRICE}.` : `Logs sell for ${LOG_SELL_PRICE}, oak logs ${OAK_LOG_SELL_PRICE}. Iron axe costs ${IRON_AXE_COST} coins.`;
   else elements.marketStatus.textContent = "Visit a trader, bank, or workshop.";
 }
 
 function updatePrompt() {
   if (game.activeChop?.slimeId) { elements.worldPrompt.textContent = "Fighting slime..."; return; }
-  if (game.activeChop?.resourceId) { const r = world.resources.find((item) => item.id === game.activeChop.resourceId); elements.worldPrompt.textContent = r?.type === "copperRock" ? "Mining copper..." : "Chopping tree..."; return; }
+  if (game.activeChop?.resourceId) { const r = world.resources.find((item) => item.id === game.activeChop.resourceId); elements.worldPrompt.textContent = r?.type === "copperRock" ? "Mining copper..." : r?.type === "oakTree" ? "Chopping oak..." : "Chopping tree..."; return; }
   if (game.hover?.slime) { elements.worldPrompt.textContent = "Training slime: click to attack."; return; }
   if (game.hover?.object) { elements.worldPrompt.textContent = `${game.hover.object.label}: stand nearby to use actions.`; return; }
   if (game.hover?.resource) { elements.worldPrompt.textContent = game.hover.resource.depleted ? `${game.hover.resource.label} is depleted.` : `${game.hover.resource.label}: click to gather.`; return; }
   if (game.hover?.npc) { elements.worldPrompt.textContent = `${game.hover.npc.name}: click to talk.`; return; }
-  elements.worldPrompt.textContent = "Gather, craft, trade, and train to finish the charter.";
+  elements.worldPrompt.textContent = "Finish the charter, then push east into Ashwood Ridge.";
 }
 
 function isNearNpc(id) { const npc = world.npcs.find((item) => item.id === id); return Boolean(npc && Math.hypot(npc.x - player.x, npc.y - player.y) <= NPC_INTERACTION_RADIUS); }
