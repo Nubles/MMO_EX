@@ -23,3 +23,11 @@ test("saved ridge slime state restores by id", () => {
   assert.equal(ridge.maxHp, 16);
   assert.deepEqual(saved, { id: "ridge-slime-1", hp: 4, defeated: false, respawnAt: 0 });
 });
+test("world includes tin rocks for bronze smithing", () => {
+  const world = createWorld();
+  const tinRocks = world.resources.filter((resource) => resource.type === "tinRock");
+
+  assert.equal(tinRocks.length, 5);
+  assert.equal(tinRocks[0].label, "Tin rock");
+  assert.match(tinRocks[0].id, /^tin-rock-/);
+});

@@ -200,6 +200,15 @@ function drawResources(ctx, world, hoveredResource, activeChop) {
       continue;
     }
 
+    if (resource.type === "tinRock") {
+      if (resource.depleted) {
+        drawDepletedTinRock(ctx, resource.x, resource.y, isHovered);
+      } else {
+        drawTinRock(ctx, resource.x, resource.y, isHovered, isActive);
+      }
+      continue;
+    }
+
     if (resource.depleted) {
       drawStump(ctx, resource.x, resource.y, isHovered);
     } else {
@@ -311,6 +320,38 @@ function drawDepletedCopperRock(ctx, x, y, isHovered) {
   ctx.moveTo(x + 10, y - 9);
   ctx.lineTo(x + 4, y + 4);
   ctx.stroke();
+}
+
+function drawTinRock(ctx, x, y, isHovered, isActive) {
+  drawShadow(ctx, x, y + 15, 28, 10);
+  const pulse = isActive ? 3 + Math.sin(performance.now() / 90) * 1.5 : 0;
+
+  ctx.fillStyle = isHovered ? "#879093" : "#697174";
+  roundedRect(ctx, x - 25 - pulse, y - 19 - pulse, 50 + pulse * 2, 34 + pulse * 2, 12);
+  ctx.fill();
+
+  ctx.fillStyle = "#4b5558";
+  roundedRect(ctx, x - 17, y - 29, 31, 22, 8);
+  ctx.fill();
+
+  ctx.fillStyle = "#d8d1b5";
+  roundedRect(ctx, x - 11, y - 18, 10, 6, 3);
+  ctx.fill();
+  roundedRect(ctx, x + 7, y - 7, 12, 6, 3);
+  ctx.fill();
+  roundedRect(ctx, x - 2, y - 28, 8, 5, 3);
+  ctx.fill();
+
+  if (isHovered || isActive) {
+    ctx.strokeStyle = isActive ? "#ffd87b" : "rgba(255, 244, 210, 0.75)";
+    ctx.lineWidth = 2;
+    circle(ctx, x, y - 7, 34 + pulse);
+    ctx.stroke();
+  }
+}
+
+function drawDepletedTinRock(ctx, x, y, isHovered) {
+  drawDepletedCopperRock(ctx, x, y, isHovered);
 }
 function drawTree(ctx, x, y, isHovered, isActive) {
   drawShadow(ctx, x, y + 16, 27, 11);
@@ -468,8 +509,3 @@ function roundedRect(ctx, x, y, width, height, radius) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
-
-
-
-
-

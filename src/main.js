@@ -6,14 +6,17 @@ import {
   OAK_LOG_SELL_PRICE,
   awardMining,
   awardOakWoodcutting,
+  awardTinMining,
   awardSlimeDefeat,
   awardWoodcutting,
   buyIronAxe,
   completeQuestIfReady,
   createProgression,
+  craftBronzeShield,
   craftCopperSword,
   damagePlayer,
   depositAll,
+  getArmorView,
   getAttackView,
   getAxeView,
   getChopDuration,
@@ -27,6 +30,7 @@ import {
   sellAllLogs,
   sellAllOakLogs,
   serializeProgression,
+  smeltBronzeBar,
   smeltCopperBar,
   withdrawAll,
 } from "./progression.js";
@@ -57,11 +61,11 @@ const OBJECT_INTERACTION_RADIUS = 92;
 const canvas = document.querySelector("#gameCanvas");
 const ctx = canvas.getContext("2d");
 const elements = Object.fromEntries([
-  "saveStatus", "logCount", "oakLogCount", "copperOreCount", "copperBarCount", "coinCount", "woodcuttingLevel", "woodcuttingProgress", "woodcuttingXp",
+  "saveStatus", "logCount", "oakLogCount", "copperOreCount", "tinOreCount", "copperBarCount", "bronzeBarCount", "coinCount", "woodcuttingLevel", "woodcuttingProgress", "woodcuttingXp",
   "miningLevel", "miningProgress", "miningXp", "smithingLevel", "smithingProgress", "smithingXp", "attackLevel", "attackProgress", "attackXp",
-  "hpValue", "hpFill", "axeName", "axeSpeed", "weaponName", "weaponDamage", "marketStatus", "sellLogs", "sellOakLogs", "buyIronAxe", "sellCopperOre", "sellCopperBars", "smeltCopperBar", "craftCopperSword",
-  "depositLogs", "withdrawLogs", "depositOakLogs", "withdrawOakLogs", "depositCopperOre", "withdrawCopperOre", "depositCopperBars", "withdrawCopperBars",
-  "bankLogs", "bankOakLogs", "bankCopperOre", "bankCopperBars", "questLogs", "questOre", "questBar", "questSale", "questSlime", "questStatus", "worldPrompt", "chatLog", "resetSave",
+  "hpValue", "hpFill", "axeName", "axeSpeed", "weaponName", "weaponDamage", "armorName", "armorProtection", "marketStatus", "sellLogs", "sellOakLogs", "buyIronAxe", "sellCopperOre", "sellCopperBars", "smeltCopperBar", "smeltBronzeBar", "craftCopperSword", "craftBronzeShield",
+  "depositLogs", "withdrawLogs", "depositOakLogs", "withdrawOakLogs", "depositCopperOre", "withdrawCopperOre", "depositTinOre", "withdrawTinOre", "depositCopperBars", "withdrawCopperBars", "depositBronzeBars", "withdrawBronzeBars",
+  "bankLogs", "bankOakLogs", "bankCopperOre", "bankTinOre", "bankCopperBars", "bankBronzeBars", "questLogs", "questOre", "questBar", "questSale", "questSlime", "questStatus", "worldPrompt", "chatLog", "resetSave",
 ].map((id) => [id, document.querySelector(`#${id}`)]));
 
 const save = loadSave();
@@ -128,16 +132,22 @@ wireButton("sellOakLogs", () => tradeNear("merchant", () => sellAllOakLogs(progr
 wireButton("sellCopperOre", () => tradeNear("prospector", () => sellAllCopperOre(progress), (r) => `Sold ${r.oreSold} copper ore for ${r.coinsEarned} coins.`, "You do not have any copper ore to sell."));
 wireButton("sellCopperBars", () => tradeNear("prospector", () => sellAllCopperBars(progress), (r) => `Sold ${r.barsSold} copper bars for ${r.coinsEarned} coins.`, "You do not have any copper bars to sell."));
 wireButton("buyIronAxe", buyAxe);
-wireButton("smeltCopperBar", smeltAtWorkshop);
+wireButton("smeltCopperBar", smeltCopperAtWorkshop);
+wireButton("smeltBronzeBar", smeltBronzeAtWorkshop);
 wireButton("craftCopperSword", craftSwordAtWorkshop);
+wireButton("craftBronzeShield", craftShieldAtWorkshop);
 wireButton("depositLogs", () => bankAction("bank", () => depositAll(progress, "logs"), "Deposited logs."));
 wireButton("withdrawLogs", () => bankAction("bank", () => withdrawAll(progress, "logs"), "Withdrew logs."));
 wireButton("depositOakLogs", () => bankAction("bank", () => depositAll(progress, "oakLogs"), "Deposited oak logs."));
 wireButton("withdrawOakLogs", () => bankAction("bank", () => withdrawAll(progress, "oakLogs"), "Withdrew oak logs."));
 wireButton("depositCopperOre", () => bankAction("bank", () => depositAll(progress, "copperOre"), "Deposited copper ore."));
 wireButton("withdrawCopperOre", () => bankAction("bank", () => withdrawAll(progress, "copperOre"), "Withdrew copper ore."));
+wireButton("depositTinOre", () => bankAction("bank", () => depositAll(progress, "tinOre"), "Deposited tin ore."));
+wireButton("withdrawTinOre", () => bankAction("bank", () => withdrawAll(progress, "tinOre"), "Withdrew tin ore."));
 wireButton("depositCopperBars", () => bankAction("bank", () => depositAll(progress, "copperBars"), "Deposited copper bars."));
 wireButton("withdrawCopperBars", () => bankAction("bank", () => withdrawAll(progress, "copperBars"), "Withdrew copper bars."));
+wireButton("depositBronzeBars", () => bankAction("bank", () => depositAll(progress, "bronzeBars"), "Deposited bronze bars."));
+wireButton("withdrawBronzeBars", () => bankAction("bank", () => withdrawAll(progress, "bronzeBars"), "Withdrew bronze bars."));
 elements.resetSave.addEventListener("click", () => { resetSave(); window.location.reload(); });
 
 function tick(now) {
@@ -190,7 +200,14 @@ function updatePending(now) {
 function startGathering(resource, now = performance.now()) {
   game.activeChop = { resourceId: resource.id, startedAt: now, endsAt: now + getGatherDuration(resource) };
   player.target = null;
-  pushChat(resource.type === "copperRock" ? "You swing your pickaxe at the copper rock." : resource.type === "oakTree" ? `You swing your ${getAxeView(progress).name.toLowerCase()} at the oak tree.` : `You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`);
+  const message = resource.type === "copperRock"
+    ? "You swing your pickaxe at the copper rock."
+    : resource.type === "tinRock"
+      ? "You swing your pickaxe at the tin rock."
+      : resource.type === "oakTree"
+        ? `You swing your ${getAxeView(progress).name.toLowerCase()} at the oak tree.`
+        : `You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`;
+  pushChat(message);
 }
 
 function startAttack(slime, now = performance.now()) {
@@ -211,8 +228,8 @@ function updateGathering(now) {
   if (Math.hypot(resource.x - player.x, resource.y - player.y) > INTERACTION_RADIUS + 18) { pushChat("You step too far away and stop gathering."); return stopAction(); }
   if (now < game.activeChop.endsAt) return;
   depleteResource(resource, now);
-  const reward = resource.type === "copperRock" ? awardMining(progress) : awardWoodcutting(progress);
-  pushChat(resource.type === "copperRock" ? `You mine copper ore. +${reward.xp} Mining XP.` : `You get some logs. +${reward.xp} Woodcutting XP.`);
+  const reward = getGatherReward(resource);
+  pushChat(getGatherMessage(resource, reward));
   maybeCompleteQuest();
   stopAction();
   persist("Progress saved");
@@ -240,7 +257,19 @@ function updateAttack(now) {
 }
 
 function stopAction() { game.activeChop = null; updatePrompt(); }
-function getGatherDuration(resource) { return resource.type === "copperRock" ? MINE_DURATION_MS : getChopDuration(progress, CHOP_DURATION_MS); }
+function getGatherDuration(resource) { return resource.type === "copperRock" || resource.type === "tinRock" ? MINE_DURATION_MS : getChopDuration(progress, CHOP_DURATION_MS); }
+function getGatherReward(resource) {
+  if (resource.type === "copperRock") return awardMining(progress);
+  if (resource.type === "tinRock") return awardTinMining(progress);
+  if (resource.type === "oakTree") return awardOakWoodcutting(progress);
+  return awardWoodcutting(progress);
+}
+function getGatherMessage(resource, reward) {
+  if (resource.type === "copperRock") return `You mine copper ore. +${reward.xp} Mining XP.`;
+  if (resource.type === "tinRock") return `You mine tin ore. +${reward.xp} Mining XP.`;
+  if (resource.type === "oakTree") return `You get an oak log. +${reward.xp} Woodcutting XP.`;
+  return `You get some logs. +${reward.xp} Woodcutting XP.`;
+}
 function getWorldPoint(event) { const rect = canvas.getBoundingClientRect(); return screenToWorld(event.clientX - rect.left, event.clientY - rect.top, camera, view.dpr); }
 
 function tradeNear(npcId, action, successText, failText) {
@@ -260,12 +289,21 @@ function buyAxe() {
   pushChat(result.reason === "already_owned" ? "You already own the iron axe." : `You need ${result.needed} more coins for the iron axe.`);
 }
 
-function smeltAtWorkshop() {
+function smeltCopperAtWorkshop() {
   if (!isNearObject("workshop")) { pushChat("Stand near the furnace to smelt copper."); return; }
   const result = smeltCopperBar(progress);
   if (!result.ok) { pushChat("You need 2 copper ore to smelt a copper bar."); updateUi(); return; }
   pushChat("Smelted 1 copper bar. +20 Smithing XP.");
   maybeCompleteQuest();
+  persist("Smithing saved");
+  updateUi();
+}
+
+function smeltBronzeAtWorkshop() {
+  if (!isNearObject("workshop")) { pushChat("Stand near the furnace to smelt bronze."); return; }
+  const result = smeltBronzeBar(progress);
+  if (!result.ok) { pushChat("You need 1 copper ore and 1 tin ore to smelt a bronze bar."); updateUi(); return; }
+  pushChat("Smelted 1 bronze bar. +" + result.xp + " Smithing XP.");
   persist("Smithing saved");
   updateUi();
 }
@@ -278,8 +316,21 @@ function craftSwordAtWorkshop() {
     updateUi();
     return;
   }
-  pushChat(`Crafted and equipped a ${result.weapon.name}. +${result.xp} Smithing XP.`);
+  pushChat("Crafted and equipped a " + result.weapon.name + ". +" + result.xp + " Smithing XP.");
   persist("Weapon saved");
+  updateUi();
+}
+
+function craftShieldAtWorkshop() {
+  if (!isNearObject("workshop")) { pushChat("Stand near the furnace to craft a bronze shield."); return; }
+  const result = craftBronzeShield(progress);
+  if (!result.ok) {
+    pushChat(result.reason === "already_owned" ? "You already own the bronze shield." : "You need 2 bronze bars and 1 oak log for a bronze shield.");
+    updateUi();
+    return;
+  }
+  pushChat("Crafted and equipped a " + result.armor.name + ". +" + result.xp + " Smithing XP.");
+  persist("Armor saved");
   updateUi();
 }
 
@@ -306,7 +357,9 @@ function updateUi(now = performance.now()) {
   elements.logCount.textContent = progress.inventory.logs;
   elements.oakLogCount.textContent = progress.inventory.oakLogs;
   elements.copperOreCount.textContent = progress.inventory.copperOre;
+  elements.tinOreCount.textContent = progress.inventory.tinOre;
   elements.copperBarCount.textContent = progress.inventory.copperBars;
+  elements.bronzeBarCount.textContent = progress.inventory.bronzeBars;
   elements.coinCount.textContent = progress.inventory.coins;
   updateSkill("woodcutting", getWoodcuttingView(progress));
   updateSkill("mining", getMiningView(progress));
@@ -320,10 +373,15 @@ function updateUi(now = performance.now()) {
   const weapon = getWeaponView(progress);
   elements.weaponName.textContent = weapon.name;
   elements.weaponDamage.textContent = weapon.damageLabel;
+  const armor = getArmorView(progress);
+  elements.armorName.textContent = armor.name;
+  elements.armorProtection.textContent = armor.protectionLabel;
   elements.bankLogs.textContent = progress.bank.logs;
   elements.bankOakLogs.textContent = progress.bank.oakLogs;
   elements.bankCopperOre.textContent = progress.bank.copperOre;
+  elements.bankTinOre.textContent = progress.bank.tinOre;
   elements.bankCopperBars.textContent = progress.bank.copperBars;
+  elements.bankBronzeBars.textContent = progress.bank.bronzeBars;
   updateQuestUi();
   updateActionUi();
   elements.saveStatus.textContent = now < saveFlashUntil ? "Progress saved locally" : "Local browser save";
@@ -349,18 +407,21 @@ function updateActionUi() {
   const nearWorkshop = isNearObject("workshop");
   const ownsIron = progress.equipment.ownedAxes.includes("iron");
   const ownsCopperSword = progress.equipment.ownedWeapons.includes("copperSword");
+  const ownsBronzeShield = progress.equipment.ownedArmor.includes("bronzeShield");
   elements.sellLogs.disabled = !nearMerchant || progress.inventory.logs <= 0;
   elements.sellOakLogs.disabled = !nearMerchant || progress.inventory.oakLogs <= 0;
   elements.buyIronAxe.disabled = !nearMerchant || ownsIron || progress.inventory.coins < IRON_AXE_COST;
   elements.sellCopperOre.disabled = !nearProspector || progress.inventory.copperOre <= 0;
   elements.sellCopperBars.disabled = !nearProspector || progress.inventory.copperBars <= 0;
   elements.smeltCopperBar.disabled = !nearWorkshop || progress.inventory.copperOre < 2;
+  elements.smeltBronzeBar.disabled = !nearWorkshop || progress.inventory.copperOre < 1 || progress.inventory.tinOre < 1;
   elements.craftCopperSword.disabled = !nearWorkshop || ownsCopperSword || progress.inventory.copperBars < 2 || progress.inventory.oakLogs < 1;
-  for (const [id, item, source] of [["depositLogs","logs","inventory"],["withdrawLogs","logs","bank"],["depositOakLogs","oakLogs","inventory"],["withdrawOakLogs","oakLogs","bank"],["depositCopperOre","copperOre","inventory"],["withdrawCopperOre","copperOre","bank"],["depositCopperBars","copperBars","inventory"],["withdrawCopperBars","copperBars","bank"]]) {
+  elements.craftBronzeShield.disabled = !nearWorkshop || ownsBronzeShield || progress.inventory.bronzeBars < 2 || progress.inventory.oakLogs < 1;
+  for (const [id, item, source] of [["depositLogs","logs","inventory"],["withdrawLogs","logs","bank"],["depositOakLogs","oakLogs","inventory"],["withdrawOakLogs","oakLogs","bank"],["depositCopperOre","copperOre","inventory"],["withdrawCopperOre","copperOre","bank"],["depositTinOre","tinOre","inventory"],["withdrawTinOre","tinOre","bank"],["depositCopperBars","copperBars","inventory"],["withdrawCopperBars","copperBars","bank"],["depositBronzeBars","bronzeBars","inventory"],["withdrawBronzeBars","bronzeBars","bank"]]) {
     elements[id].disabled = !nearBank || progress[source][item] <= 0;
   }
   if (nearBank) elements.marketStatus.textContent = "Bank chest nearby. Deposit or withdraw materials.";
-  else if (nearWorkshop) elements.marketStatus.textContent = ownsCopperSword ? "Furnace nearby. Copper sword owned." : "Furnace nearby. Smelt bars or craft a copper sword from 2 bars and 1 oak log.";
+  else if (nearWorkshop) elements.marketStatus.textContent = ownsBronzeShield ? "Furnace nearby. Bronze shield owned." : "Furnace nearby. Smelt copper or bronze, then craft weapons and shields.";
   else if (nearProspector) elements.marketStatus.textContent = `Prospector nearby. Ore ${COPPER_ORE_SELL_PRICE} coins, bars ${COPPER_BAR_SELL_PRICE} coins.`;
   else if (nearMerchant) elements.marketStatus.textContent = ownsIron ? `Iron axe owned. Logs sell for ${LOG_SELL_PRICE}; oak logs ${OAK_LOG_SELL_PRICE}.` : `Logs sell for ${LOG_SELL_PRICE}, oak logs ${OAK_LOG_SELL_PRICE}. Iron axe costs ${IRON_AXE_COST} coins.`;
   else elements.marketStatus.textContent = "Visit a trader, bank, or workshop.";
@@ -368,7 +429,7 @@ function updateActionUi() {
 
 function updatePrompt() {
   if (game.activeChop?.slimeId) { elements.worldPrompt.textContent = "Fighting slime..."; return; }
-  if (game.activeChop?.resourceId) { const r = world.resources.find((item) => item.id === game.activeChop.resourceId); elements.worldPrompt.textContent = r?.type === "copperRock" ? "Mining copper..." : r?.type === "oakTree" ? "Chopping oak..." : "Chopping tree..."; return; }
+  if (game.activeChop?.resourceId) { const r = world.resources.find((item) => item.id === game.activeChop.resourceId); elements.worldPrompt.textContent = r?.type === "copperRock" ? "Mining copper..." : r?.type === "tinRock" ? "Mining tin..." : r?.type === "oakTree" ? "Chopping oak..." : "Chopping tree..."; return; }
   if (game.hover?.slime) { elements.worldPrompt.textContent = "Training slime: click to attack."; return; }
   if (game.hover?.object) { elements.worldPrompt.textContent = `${game.hover.object.label}: stand nearby to use actions.`; return; }
   if (game.hover?.resource) { elements.worldPrompt.textContent = game.hover.resource.depleted ? `${game.hover.resource.label} is depleted.` : `${game.hover.resource.label}: click to gather.`; return; }

@@ -159,7 +159,7 @@ test("old saves default bank, bars, combat, smithing, and quest state", () => {
   });
 
   assert.equal(state.inventory.copperBars, 0);
-  assert.deepEqual(state.bank, { logs: 0, oakLogs: 0, copperOre: 0, copperBars: 0 });
+  assert.deepEqual(state.bank, { logs: 0, oakLogs: 0, copperOre: 0, tinOre: 0, copperBars: 0, bronzeBars: 0 });
   assert.equal(state.skills.smithingXp, 0);
   assert.equal(state.skills.attackXp, 0);
   assert.equal(state.combat.hp, 20);
@@ -322,4 +322,91 @@ test("ridge slime defeat grants stronger Attack XP and coins", () => {
   assert.equal(result.coins, 8);
   assert.equal(state.skills.attackXp, 35);
   assert.equal(state.inventory.coins, 8);
+});
+
+// Stage 6 bronze smithing rules
+test("old saves default tin, bronze bars, and defensive equipment", () => {
+  const state = progression.createProgression({
+    inventory: { logs: 1, copperOre: 2, copperBars: 1, coins: 3 },
+    equipment: { weapon: "copperSword", ownedWeapons: ["trainingSword", "copperSword"] },
+  });
+
+  assert.equal(state.inventory.tinOre, 0);
+  assert.equal(state.inventory.bronzeBars, 0);
+  assert.equal(state.bank.tinOre, 0);
+  assert.equal(state.bank.bronzeBars, 0);
+  assert.equal(progression.getArmorView(state).id, "clothTunic");
+  assert.equal(progression.getDamageReduction(state), 0);
+});
+
+test("tin mining reward adds tin ore and Mining XP", () => {
+  assert.equal(typeof progression.awardTinMining, "function");
+
+  const state = progression.createProgression();
+  const result = progression.awardTinMining(state);
+
+  assert.equal(result.item, "tinOre");
+  assert.equal(result.amount, 1);
+  assert.equal(result.xp, 28);
+  assert.equal(state.inventory.tinOre, 1);
+  assert.equal(state.skills.miningXp, 28);
+});
+
+test("smelting bronze bar consumes copper and tin and grants Smithing XP", () => {
+  assert.equal(typeof progression.smeltBronzeBar, "function");
+
+  const state = progression.createProgression({ inventory: { copperOre: 1, tinOre: 1 } });
+  const result = progression.smeltBronzeBar(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.barsCreated, 1);
+  assert.equal(result.xp, 24);
+  assert.equal(state.inventory.copperOre, 0);
+  assert.equal(state.inventory.tinOre, 0);
+  assert.equal(state.inventory.bronzeBars, 1);
+  assert.equal(state.skills.smithingXp, 24);
+});
+
+test("crafting bronze shield consumes bronze bars and oak logs, grants Smithing XP, and persists", () => {
+  assert.equal(typeof progression.craftBronzeShield, "function");
+
+  const state = progression.createProgression({ inventory: { bronzeBars: 2, oakLogs: 1 } });
+  const result = progression.craftBronzeShield(state);
+  const saved = progression.serializeProgression(state);
+  const loaded = progression.createProgression(saved);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.armor.id, "bronzeShield");
+  assert.equal(state.inventory.bronzeBars, 0);
+  assert.equal(state.inventory.oakLogs, 0);
+  assert.equal(state.skills.smithingXp, 40);
+  assert.equal(progression.getArmorView(loaded).id, "bronzeShield");
+  assert.equal(progression.getDamageReduction(loaded), 1);
+});
+
+test("bronze shield blocks missing materials and duplicate ownership", () => {
+  const missing = progression.createProgression({ inventory: { bronzeBars: 1, oakLogs: 0 } });
+  const crafted = progression.createProgression({ inventory: { bronzeBars: 3, oakLogs: 2 } });
+
+  const missingResult = progression.craftBronzeShield(missing);
+  const firstCraft = progression.craftBronzeShield(crafted);
+  const secondCraft = progression.craftBronzeShield(crafted);
+
+  assert.equal(missingResult.ok, false);
+  assert.equal(missingResult.reason, "missing_materials");
+  assert.equal(firstCraft.ok, true);
+  assert.equal(secondCraft.ok, false);
+  assert.equal(secondCraft.reason, "already_owned");
+});
+
+test("bronze shield reduces incoming player damage", () => {
+  const state = progression.createProgression({
+    equipment: { armor: "bronzeShield", ownedArmor: ["clothTunic", "bronzeShield"] },
+  });
+
+  const result = progression.damagePlayer(state, 3);
+
+  assert.equal(result.knockedOut, false);
+  assert.equal(result.damageTaken, 2);
+  assert.equal(state.combat.hp, 18);
 });

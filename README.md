@@ -10,16 +10,16 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Click trees to walk over and chop them.
 - Woodcutting XP, levels, logs, stumps, and timed tree respawn.
 - Timber market: sell logs for coins and buy an iron axe upgrade.
-- Copper mining: mine rocks for copper ore and Mining XP.
+- Copper and tin mining: mine rocks for ore and Mining XP.
 - Prospector market: sell copper ore or copper bars for coins.
-- Bank chest: deposit and withdraw logs, oak logs, copper ore, and copper bars.
-- Furnace workshop: smelt copper ore into copper bars for Smithing XP.
+- Bank chest: deposit and withdraw logs, oak logs, ores, and bars.
+- Furnace workshop: smelt copper bars, smelt bronze bars, craft a copper sword, and craft a bronze shield.
 - Training slimes and tougher ridge slimes with Attack XP, coin rewards, HP, and respawns.
 - First Island Charter quest tying gathering, smithing, trading, and combat into one starter loop.
-- Ashwood Ridge: oak trees, oak logs, ridge slimes, and a copper sword crafting upgrade.
-- Equipment display with faster chopping once the iron axe is owned.
+- Ashwood Ridge: oak trees, oak logs, tin rocks, ridge slimes, and copper/bronze crafting upgrades.
+- Equipment display with faster chopping, weapon damage, and armor protection.
 - Chat-style world messages.
-- Local browser save for position, inventory, skills, bank, quest progress, resources, and slime timers.
+- Local browser save for position, inventory, skills, bank, equipment, quest progress, resources, and slime timers.
 - Reset-save button.
 
 ## Controls
@@ -31,8 +31,8 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Stand near the Timber Buyer: use the market buttons to sell logs, sell oak logs, or buy the iron axe.
 - Stand near the Prospector: sell copper ore or copper bars.
 - Stand near the Bank chest: deposit or withdraw materials.
-- Stand near the Furnace: smelt copper ore into bars or craft a copper sword from 2 copper bars and 1 oak log.
-- Click a slime: walk over and attack it. Ridge slimes are tougher and pay better rewards.
+- Stand near the Furnace: smelt copper ore into copper bars, smelt copper plus tin into bronze bars, craft a copper sword, or craft a bronze shield from 2 bronze bars and 1 oak log.
+- Click a slime: walk over and attack it. Ridge slimes are tougher and pay better rewards; armor reduces incoming damage.
 
 ## Run Locally
 
@@ -57,6 +57,6 @@ The repository includes a GitHub Actions workflow at `.github/workflows/pages.ym
 Next strong steps:
 
 - Add region gates, requirements, and named destinations.
-- Add starter armor, more ore tiers, and deeper crafting recipes.
+- Add iron ore, iron gear, and deeper crafting recipes.
 - Add sprite assets or generated tile art.
 - Add real multiplayer presence through a backend such as Cloudflare Workers, Supabase, Firebase, or another realtime service.

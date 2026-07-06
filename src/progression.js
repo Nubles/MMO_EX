@@ -2,8 +2,11 @@ const LEVEL_XP = [0, 100, 260, 500, 860, 1380, 2100, 3060, 4300, 5860, 7780];
 const WOODCUTTING_REWARD_XP = 24;
 export const OAK_WOODCUTTING_REWARD_XP = 45;
 export const MINING_REWARD_XP = 30;
+export const TIN_MINING_REWARD_XP = 28;
 export const SMITHING_REWARD_XP = 20;
+export const BRONZE_BAR_SMITHING_XP = 24;
 export const COPPER_SWORD_SMITHING_XP = 30;
+export const BRONZE_SHIELD_SMITHING_XP = 40;
 export const ATTACK_REWARD_XP = 18;
 export const RIDGE_SLIME_ATTACK_REWARD_XP = 35;
 export const LOG_SELL_PRICE = 4;
@@ -41,8 +44,22 @@ export const WEAPONS = {
     damageLabel: "6 damage",
   },
 };
+export const ARMOR = {
+  clothTunic: {
+    id: "clothTunic",
+    name: "Cloth tunic",
+    damageReduction: 0,
+    protectionLabel: "0 protection",
+  },
+  bronzeShield: {
+    id: "bronzeShield",
+    name: "Bronze shield",
+    damageReduction: 1,
+    protectionLabel: "1 protection",
+  },
+};
 
-const BANK_ITEMS = ["logs", "oakLogs", "copperOre", "copperBars"];
+const BANK_ITEMS = ["logs", "oakLogs", "copperOre", "tinOre", "copperBars", "bronzeBars"];
 const QUEST_KEYS = ["logs", "ore", "bar", "sale", "slime"];
 const SLIME_REWARDS = {
   trainingSlime: { xp: ATTACK_REWARD_XP, coins: 3 },
@@ -57,20 +74,27 @@ export function createProgression(saved = {}) {
   const ownedWeapons = normalizeOwnedWeapons(saved.equipment?.ownedWeapons);
   const savedWeapon = saved.equipment?.weapon;
   const weapon = ownedWeapons.includes(savedWeapon) ? savedWeapon : "trainingSword";
+  const ownedArmor = normalizeOwnedArmor(saved.equipment?.ownedArmor);
+  const savedArmor = saved.equipment?.armor;
+  const armor = ownedArmor.includes(savedArmor) ? savedArmor : "clothTunic";
 
   return {
     inventory: {
       logs: readCount(saved.inventory?.logs),
       oakLogs: readCount(saved.inventory?.oakLogs),
       copperOre: readCount(saved.inventory?.copperOre),
+      tinOre: readCount(saved.inventory?.tinOre),
       copperBars: readCount(saved.inventory?.copperBars),
+      bronzeBars: readCount(saved.inventory?.bronzeBars),
       coins: readCount(saved.inventory?.coins),
     },
     bank: {
       logs: readCount(saved.bank?.logs),
       oakLogs: readCount(saved.bank?.oakLogs),
       copperOre: readCount(saved.bank?.copperOre),
+      tinOre: readCount(saved.bank?.tinOre),
       copperBars: readCount(saved.bank?.copperBars),
+      bronzeBars: readCount(saved.bank?.bronzeBars),
     },
     skills: {
       woodcuttingXp: readCount(saved.skills?.woodcuttingXp),
@@ -88,6 +112,8 @@ export function createProgression(saved = {}) {
       ownedAxes,
       weapon,
       ownedWeapons,
+      armor,
+      ownedArmor,
     },
   };
 }
@@ -139,6 +165,21 @@ export function awardMining(progress) {
   };
 }
 
+export function awardTinMining(progress) {
+  const beforeLevel = getLevelForXp(progress.skills.miningXp);
+  progress.inventory.tinOre += 1;
+  progress.skills.miningXp += TIN_MINING_REWARD_XP;
+  const afterLevel = getLevelForXp(progress.skills.miningXp);
+
+  return {
+    item: "tinOre",
+    amount: 1,
+    xp: TIN_MINING_REWARD_XP,
+    leveledUp: afterLevel > beforeLevel,
+    level: afterLevel,
+  };
+}
+
 export function getWoodcuttingView(progress) {
   return getSkillView(progress.skills.woodcuttingXp);
 }
@@ -173,6 +214,18 @@ export function getWeaponView(progress) {
 
 export function getWeaponDamage(progress) {
   return getWeaponView(progress).damage;
+}
+
+export function getArmorView(progress) {
+  const armor = ARMOR[progress.equipment?.armor] || ARMOR.clothTunic;
+  return {
+    ...armor,
+    owned: progress.equipment?.ownedArmor?.includes(armor.id) || armor.id === "clothTunic",
+  };
+}
+
+export function getDamageReduction(progress) {
+  return getArmorView(progress).damageReduction;
 }
 
 export function getChopDuration(progress, baseDuration) {
@@ -227,6 +280,31 @@ export function smeltCopperBar(progress) {
   };
 }
 
+export function smeltBronzeBar(progress) {
+  const missing = {
+    copperOre: Math.max(0, 1 - progress.inventory.copperOre),
+    tinOre: Math.max(0, 1 - progress.inventory.tinOre),
+  };
+  if (missing.copperOre > 0 || missing.tinOre > 0) {
+    return { ok: false, reason: "missing_materials", missing };
+  }
+
+  const beforeLevel = getLevelForXp(progress.skills.smithingXp);
+  progress.inventory.copperOre -= 1;
+  progress.inventory.tinOre -= 1;
+  progress.inventory.bronzeBars += 1;
+  progress.skills.smithingXp += BRONZE_BAR_SMITHING_XP;
+  const afterLevel = getLevelForXp(progress.skills.smithingXp);
+
+  return {
+    ok: true,
+    barsCreated: 1,
+    xp: BRONZE_BAR_SMITHING_XP,
+    leveledUp: afterLevel > beforeLevel,
+    level: afterLevel,
+  };
+}
+
 export function craftCopperSword(progress) {
   if (progress.equipment.ownedWeapons.includes("copperSword")) {
     return { ok: false, reason: "already_owned", weapon: WEAPONS.copperSword };
@@ -251,6 +329,35 @@ export function craftCopperSword(progress) {
     ok: true,
     weapon: WEAPONS.copperSword,
     xp: COPPER_SWORD_SMITHING_XP,
+    leveledUp: afterLevel > beforeLevel,
+    level: afterLevel,
+  };
+}
+
+export function craftBronzeShield(progress) {
+  if (progress.equipment.ownedArmor.includes("bronzeShield")) {
+    return { ok: false, reason: "already_owned", armor: ARMOR.bronzeShield };
+  }
+  const missing = {
+    bronzeBars: Math.max(0, 2 - progress.inventory.bronzeBars),
+    oakLogs: Math.max(0, 1 - progress.inventory.oakLogs),
+  };
+  if (missing.bronzeBars > 0 || missing.oakLogs > 0) {
+    return { ok: false, reason: "missing_materials", missing };
+  }
+
+  const beforeLevel = getLevelForXp(progress.skills.smithingXp);
+  progress.inventory.bronzeBars -= 2;
+  progress.inventory.oakLogs -= 1;
+  progress.skills.smithingXp += BRONZE_SHIELD_SMITHING_XP;
+  progress.equipment.ownedArmor.push("bronzeShield");
+  progress.equipment.armor = "bronzeShield";
+  const afterLevel = getLevelForXp(progress.skills.smithingXp);
+
+  return {
+    ok: true,
+    armor: ARMOR.bronzeShield,
+    xp: BRONZE_SHIELD_SMITHING_XP,
     leveledUp: afterLevel > beforeLevel,
     level: afterLevel,
   };
@@ -363,12 +470,13 @@ export function resetHp(progress) {
 }
 
 export function damagePlayer(progress, amount) {
-  progress.combat.hp = clamp(progress.combat.hp - amount, 0, progress.combat.maxHp);
+  const damageTaken = Math.max(0, amount - getDamageReduction(progress));
+  progress.combat.hp = clamp(progress.combat.hp - damageTaken, 0, progress.combat.maxHp);
   if (progress.combat.hp <= 0) {
     resetHp(progress);
-    return { knockedOut: true, hp: progress.combat.hp };
+    return { knockedOut: true, hp: progress.combat.hp, damageTaken };
   }
-  return { knockedOut: false, hp: progress.combat.hp };
+  return { knockedOut: false, hp: progress.combat.hp, damageTaken };
 }
 
 export function buyIronAxe(progress) {
@@ -427,14 +535,18 @@ export function serializeProgression(progress) {
       logs: progress.inventory.logs,
       oakLogs: progress.inventory.oakLogs,
       copperOre: progress.inventory.copperOre,
+      tinOre: progress.inventory.tinOre,
       copperBars: progress.inventory.copperBars,
+      bronzeBars: progress.inventory.bronzeBars,
       coins: progress.inventory.coins,
     },
     bank: {
       logs: progress.bank.logs,
       oakLogs: progress.bank.oakLogs,
       copperOre: progress.bank.copperOre,
+      tinOre: progress.bank.tinOre,
       copperBars: progress.bank.copperBars,
+      bronzeBars: progress.bank.bronzeBars,
     },
     skills: {
       woodcuttingXp: progress.skills.woodcuttingXp,
@@ -454,6 +566,8 @@ export function serializeProgression(progress) {
       ownedAxes: [...progress.equipment.ownedAxes],
       weapon: progress.equipment.weapon,
       ownedWeapons: [...progress.equipment.ownedWeapons],
+      armor: progress.equipment.armor,
+      ownedArmor: [...progress.equipment.ownedArmor],
     },
   };
 }
@@ -501,6 +615,11 @@ function normalizeOwnedAxes(savedAxes) {
 function normalizeOwnedWeapons(savedWeapons) {
   const saved = Array.isArray(savedWeapons) ? savedWeapons : [];
   return [...new Set(["trainingSword", ...saved.filter((weapon) => WEAPONS[weapon])])];
+}
+
+function normalizeOwnedArmor(savedArmor) {
+  const saved = Array.isArray(savedArmor) ? savedArmor : [];
+  return [...new Set(["clothTunic", ...saved.filter((armor) => ARMOR[armor])])];
 }
 
 function normalizeQuest(savedQuest = {}) {
