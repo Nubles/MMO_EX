@@ -1,4 +1,15 @@
-import { awardWoodcutting, createProgression, getWoodcuttingView, serializeProgression } from "./progression.js";
+import {
+  IRON_AXE_COST,
+  LOG_SELL_PRICE,
+  awardWoodcutting,
+  buyIronAxe,
+  createProgression,
+  getAxeView,
+  getChopDuration,
+  getWoodcuttingView,
+  sellAllLogs,
+  serializeProgression,
+} from "./progression.js";
 import { createDefaultPlayer, serializePlayer, setPlayerTarget, updatePlayer } from "./player.js";
 import { getCamera, renderGame, resizeCanvas, screenToWorld } from "./render.js";
 import {
@@ -13,6 +24,8 @@ import {
 } from "./world.js";
 import { loadSave, resetSave, saveGame } from "./storage.js";
 
+const MERCHANT_INTERACTION_RADIUS = 96;
+
 const canvas = document.querySelector("#gameCanvas");
 const ctx = canvas.getContext("2d");
 const elements = {
@@ -22,6 +35,11 @@ const elements = {
   woodcuttingLevel: document.querySelector("#woodcuttingLevel"),
   woodcuttingProgress: document.querySelector("#woodcuttingProgress"),
   woodcuttingXp: document.querySelector("#woodcuttingXp"),
+  axeName: document.querySelector("#axeName"),
+  axeSpeed: document.querySelector("#axeSpeed"),
+  marketStatus: document.querySelector("#marketStatus"),
+  sellLogs: document.querySelector("#sellLogs"),
+  buyIronAxe: document.querySelector("#buyIronAxe"),
   worldPrompt: document.querySelector("#worldPrompt"),
   chatLog: document.querySelector("#chatLog"),
   resetSave: document.querySelector("#resetSave"),
@@ -51,7 +69,7 @@ let lastAutoSave = 0;
 let saveFlashUntil = 0;
 
 pushChat(save.message);
-pushChat("Click a tree, walk close, and chop it for logs and Woodcutting XP.");
+pushChat("Gather logs, then visit the Timber Buyer to turn wood into coins.");
 updateUi();
 requestAnimationFrame(tick);
 
@@ -96,6 +114,9 @@ canvas.addEventListener("pointerdown", (event) => {
 
   if (npc) {
     pushChat(`${npc.name}: ${npc.line}`);
+    if (npc.id === "merchant") {
+      pushChat(`Logs sell for ${LOG_SELL_PRICE} coins each. Iron axe costs ${IRON_AXE_COST} coins.`);
+    }
     return;
   }
 
@@ -103,6 +124,46 @@ canvas.addEventListener("pointerdown", (event) => {
   stopChopping();
   setPlayerTarget(player, point.x, point.y, world);
   updatePrompt();
+});
+
+elements.sellLogs.addEventListener("click", () => {
+  if (!isNearMerchant()) {
+    pushChat("You need to stand near the Timber Buyer to sell logs.");
+    return;
+  }
+
+  const result = sellAllLogs(progress);
+  if (!result.ok) {
+    pushChat("You do not have any logs to sell.");
+    updateUi();
+    return;
+  }
+
+  pushChat(`Sold ${result.logsSold} logs for ${result.coinsEarned} coins.`);
+  persist("Market trade saved");
+  updateUi();
+});
+
+elements.buyIronAxe.addEventListener("click", () => {
+  if (!isNearMerchant()) {
+    pushChat("You need to stand near the Timber Buyer to buy tools.");
+    return;
+  }
+
+  const result = buyIronAxe(progress);
+  if (result.ok) {
+    pushChat("You bought and equipped an iron axe. Chopping is faster now.");
+    persist("Equipment saved");
+    updateUi();
+    return;
+  }
+
+  if (result.reason === "already_owned") {
+    pushChat("You already own the iron axe.");
+  } else {
+    pushChat(`You need ${result.needed} more coins for the iron axe.`);
+  }
+  updateUi();
 });
 
 elements.resetSave.addEventListener("click", () => {
@@ -175,10 +236,10 @@ function startChopping(resource, now = performance.now()) {
   game.activeChop = {
     resourceId: resource.id,
     startedAt: now,
-    endsAt: now + CHOP_DURATION_MS,
+    endsAt: now + getChopDuration(progress, CHOP_DURATION_MS),
   };
   player.target = null;
-  pushChat("You swing your axe at the tree.");
+  pushChat(`You swing your ${getAxeView(progress).name.toLowerCase()} at the tree.`);
   updatePrompt();
 }
 
@@ -231,6 +292,12 @@ function updateUi(now = performance.now()) {
   elements.woodcuttingProgress.style.width = `${Math.round(woodcutting.progressToNext * 100)}%`;
   elements.woodcuttingXp.textContent = `${woodcutting.xp} / ${woodcutting.nextLevelXp} XP`;
 
+  const axe = getAxeView(progress);
+  elements.axeName.textContent = axe.name;
+  elements.axeSpeed.textContent = axe.speedLabel;
+
+  updateMarketUi();
+
   if (now < saveFlashUntil) {
     elements.saveStatus.textContent = "Progress saved locally";
   } else {
@@ -238,6 +305,25 @@ function updateUi(now = performance.now()) {
   }
 
   updatePrompt();
+}
+
+function updateMarketUi() {
+  const nearMerchant = isNearMerchant();
+  const ownsIron = progress.equipment.ownedAxes.includes("iron");
+  elements.sellLogs.disabled = !nearMerchant || progress.inventory.logs <= 0;
+  elements.buyIronAxe.disabled = !nearMerchant || ownsIron || progress.inventory.coins < IRON_AXE_COST;
+
+  if (!nearMerchant) {
+    elements.marketStatus.textContent = "Visit the Timber Buyer near the market.";
+    return;
+  }
+
+  if (ownsIron) {
+    elements.marketStatus.textContent = `Iron axe owned. Logs sell for ${LOG_SELL_PRICE} coins each.`;
+    return;
+  }
+
+  elements.marketStatus.textContent = `Logs sell for ${LOG_SELL_PRICE} coins. Iron axe costs ${IRON_AXE_COST} coins.`;
 }
 
 function updatePrompt() {
@@ -259,7 +345,17 @@ function updatePrompt() {
     return;
   }
 
-  elements.worldPrompt.textContent = "Explore the island. Click trees to gather logs.";
+  if (isNearMerchant()) {
+    elements.worldPrompt.textContent = "Timber Buyer nearby. Use the market panel to trade.";
+    return;
+  }
+
+  elements.worldPrompt.textContent = "Gather logs, then sell them to the Timber Buyer.";
+}
+
+function isNearMerchant() {
+  const merchant = world.npcs.find((npc) => npc.id === "merchant");
+  return Boolean(merchant && Math.hypot(merchant.x - player.x, merchant.y - player.y) <= MERCHANT_INTERACTION_RADIUS);
 }
 
 function pushChat(message) {

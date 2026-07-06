@@ -173,6 +173,38 @@ h1 {
   line-height: 1.45;
 }
 
+
+#axeSpeed,
+#marketStatus {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.action-button {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid rgba(229, 184, 92, 0.42);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(83, 64, 32, 0.72);
+  color: #fff2c9;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.action-button:hover:not(:disabled) {
+  background: rgba(112, 86, 38, 0.86);
+}
+
+.action-button:disabled {
+  border-color: rgba(244, 236, 208, 0.12);
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(244, 236, 208, 0.42);
+  cursor: not-allowed;
+}
 #resetSave {
   width: 100%;
   margin-top: 12px;
@@ -260,3 +292,4 @@ h1 {
     max-height: 150px;
   }
 }
+

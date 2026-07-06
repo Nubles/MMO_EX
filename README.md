@@ -9,6 +9,8 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Click-to-move navigation.
 - Click trees to walk over and chop them.
 - Woodcutting XP, levels, logs, stumps, and timed tree respawn.
+- Timber market: sell logs for coins and buy an iron axe upgrade.
+- Equipment display with faster chopping once the iron axe is owned.
 - Chat-style world messages.
 - Local browser save for position, inventory, XP, and resource timers.
 - Reset-save button.
@@ -19,6 +21,7 @@ MMO-EX is an experiment in building a browser MMO-style game that can run from G
 - Mouse click: move to a spot.
 - Click a tree: walk to it and chop when close.
 - Click an NPC: read their line.
+- Stand near the Timber Buyer: use the market buttons to sell logs or buy the iron axe.
 
 ## Run Locally
 
@@ -42,9 +45,10 @@ The repository includes a GitHub Actions workflow at `.github/workflows/pages.ym
 
 Next strong steps:
 
-- Add banking and selling logs for coins.
+- Add banking and storage for gathered materials.
 - Add mining and smithing as a second skill chain.
 - Add a larger map with region exits.
 - Add basic combat and loot.
 - Add sprite assets or generated tile art.
 - Add real multiplayer presence through a backend such as Cloudflare Workers, Supabase, Firebase, or another realtime service.
+

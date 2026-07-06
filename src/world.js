@@ -41,7 +41,7 @@ const NPCS = [
     name: "Timber Buyer",
     x: 25.5 * TILE_SIZE,
     y: 17.5 * TILE_SIZE,
-    line: "Soon I will buy those logs. For now, stack them high.",
+    line: "I buy logs and sell better axes. Stand nearby and use the market panel.",
   },
 ];
 
@@ -193,3 +193,4 @@ export function getWorldBounds(world) {
     height: world.height * world.tileSize,
   };
 }
+
