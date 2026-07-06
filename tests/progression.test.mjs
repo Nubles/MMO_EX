@@ -150,3 +150,94 @@ test("selling four copper ore gives twenty four coins and clears ore", () => {
   assert.equal(state.inventory.copperOre, 0);
   assert.equal(state.inventory.coins, 27);
 });
+
+// Initial island completion rules
+test("old saves default bank, bars, combat, smithing, and quest state", () => {
+  const state = progression.createProgression({
+    inventory: { logs: 1, copperOre: 2, coins: 3 },
+    skills: { woodcuttingXp: 4, miningXp: 5 },
+  });
+
+  assert.equal(state.inventory.copperBars, 0);
+  assert.deepEqual(state.bank, { logs: 0, copperOre: 0, copperBars: 0 });
+  assert.equal(state.skills.smithingXp, 0);
+  assert.equal(state.skills.attackXp, 0);
+  assert.equal(state.combat.hp, 20);
+  assert.equal(state.quest.completed, false);
+});
+
+test("bank deposit and withdraw moves all of an item", () => {
+  assert.equal(typeof progression.depositAll, "function");
+  assert.equal(typeof progression.withdrawAll, "function");
+
+  const state = progression.createProgression({
+    inventory: { logs: 4, copperOre: 3, copperBars: 2, coins: 0 },
+  });
+
+  assert.deepEqual(progression.depositAll(state, "logs"), { ok: true, item: "logs", amount: 4 });
+  assert.equal(state.inventory.logs, 0);
+  assert.equal(state.bank.logs, 4);
+  assert.deepEqual(progression.withdrawAll(state, "logs"), { ok: true, item: "logs", amount: 4 });
+  assert.equal(state.inventory.logs, 4);
+  assert.equal(state.bank.logs, 0);
+});
+
+test("smelting copper bar consumes ore and grants Smithing XP", () => {
+  assert.equal(typeof progression.smeltCopperBar, "function");
+
+  const state = progression.createProgression({ inventory: { copperOre: 2 } });
+  const result = progression.smeltCopperBar(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.barsCreated, 1);
+  assert.equal(result.xp, 20);
+  assert.equal(state.inventory.copperOre, 0);
+  assert.equal(state.inventory.copperBars, 1);
+  assert.equal(state.skills.smithingXp, 20);
+});
+
+test("selling copper bars grants coins and clears bars", () => {
+  assert.equal(typeof progression.sellAllCopperBars, "function");
+
+  const state = progression.createProgression({ inventory: { copperBars: 2, coins: 5 } });
+  const result = progression.sellAllCopperBars(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.barsSold, 2);
+  assert.equal(result.coinsEarned, 28);
+  assert.equal(state.inventory.copperBars, 0);
+  assert.equal(state.inventory.coins, 33);
+});
+
+test("slime defeat grants Attack XP and coins", () => {
+  assert.equal(typeof progression.awardSlimeDefeat, "function");
+
+  const state = progression.createProgression();
+  const result = progression.awardSlimeDefeat(state);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.xp, 18);
+  assert.equal(result.coins, 3);
+  assert.equal(state.skills.attackXp, 18);
+  assert.equal(state.inventory.coins, 3);
+});
+
+test("quest completion grants reward once", () => {
+  assert.equal(typeof progression.recordQuestProgress, "function");
+  assert.equal(typeof progression.completeQuestIfReady, "function");
+
+  const state = progression.createProgression();
+  for (const key of ["logs", "ore", "bar", "sale", "slime"]) {
+    progression.recordQuestProgress(state, key);
+  }
+
+  const first = progression.completeQuestIfReady(state);
+  const second = progression.completeQuestIfReady(state);
+
+  assert.equal(first.ok, true);
+  assert.equal(first.coins, 25);
+  assert.equal(second.ok, false);
+  assert.equal(second.reason, "already_completed");
+  assert.equal(state.inventory.coins, 25);
+  assert.equal(state.quest.completed, true);
+});
