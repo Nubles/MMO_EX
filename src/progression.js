@@ -2,6 +2,7 @@ const LEVEL_XP = [0, 100, 260, 500, 860, 1380, 2100, 3060, 4300, 5860, 7780];
 const WOODCUTTING_REWARD_XP = 24;
 
 export function createProgression(saved = {}) {
+  saved = saved || {};
   return {
     inventory: {
       logs: Math.max(0, Number(saved.inventory?.logs) || 0),
@@ -75,3 +76,5 @@ function getXpForLevel(level) {
   const extra = level - LEVEL_XP.length;
   return LEVEL_XP[LEVEL_XP.length - 1] + extra * extra * 900;
 }
+
+

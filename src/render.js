@@ -32,20 +32,20 @@ export function resizeCanvas(canvas) {
 
 export function screenToWorld(screenX, screenY, camera, dpr = 1) {
   return {
-    x: screenX * dpr + camera.x,
-    y: screenY * dpr + camera.y,
+    x: screenX + camera.x,
+    y: screenY + camera.y,
   };
 }
 
 export function getCamera(world, player, view) {
-  const worldWidth = world.width * world.tileSize * view.dpr;
-  const worldHeight = world.height * world.tileSize * view.dpr;
-  const playerX = player.x * view.dpr;
-  const playerY = player.y * view.dpr;
+  const worldWidth = world.width * world.tileSize;
+  const worldHeight = world.height * world.tileSize;
+  const playerX = player.x;
+  const playerY = player.y;
 
   return {
-    x: clamp(playerX - view.width * 0.5, 0, Math.max(0, worldWidth - view.width)),
-    y: clamp(playerY - view.height * 0.5, 0, Math.max(0, worldHeight - view.height)),
+    x: clamp(playerX - view.cssWidth * 0.5, 0, Math.max(0, worldWidth - view.cssWidth)),
+    y: clamp(playerY - view.cssHeight * 0.5, 0, Math.max(0, worldHeight - view.cssHeight)),
   };
 }
 
@@ -56,7 +56,7 @@ export function renderGame(ctx, game, view) {
   ctx.save();
   ctx.clearRect(0, 0, view.width, view.height);
   ctx.scale(view.dpr, view.dpr);
-  ctx.translate(-camera.x / view.dpr, -camera.y / view.dpr);
+  ctx.translate(-camera.x, -camera.y);
 
   drawTerrain(ctx, world);
   drawMapDetails(ctx, world);
@@ -312,4 +312,5 @@ function roundedRect(ctx, x, y, width, height, radius) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
+
 
